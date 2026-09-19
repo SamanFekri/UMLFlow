@@ -1,0 +1,24 @@
+/** UMLFlow public API. The CLI and the Claude Code skill are thin layers over these exports. */
+export { Umlflow } from './sync/pipeline.js';
+export type { UpdateResult, CheckResult, DiagramOutcome, IndexRefreshResult, GeneratedDiagram } from './sync/pipeline.js';
+export { diffModels, type ModelDiff } from './sync/diff.js';
+export { initProject } from './config/init.js';
+export { ConfigStore } from './config/store.js';
+export type { UmlflowConfig, DiagramDefinition, DiagramScope, DiagramOverrides, InferredScope, HookMode } from './config/schema.js';
+export { SemanticsStore, type SemanticsData } from './model/semantics.js';
+export type { SystemModel, Component, Operation, Interaction, Entity, EntityRelation, Flow, UseCase, Actor, SemanticQuestion } from './model/types.js';
+export { ModelIndex } from './model/types.js';
+export { buildSystemModel } from './model/build.js';
+export type { Provenance, SourceRef, Confidence, FactSource } from './core/provenance.js';
+export type { CodeFile, CodeSymbol, CodeImport, CallSite, Annotation, EntityDecl } from './codemodel/types.js';
+export type { LanguageAdapter, ParseContext } from './parsers/adapter.js';
+export { ParserRegistry, createDefaultRegistry } from './parsers/registry.js';
+export type { DiagramGenerator, GenerateContext, GenerateResult } from './diagrams/generator.js';
+export { GeneratorRegistry } from './diagrams/generator.js';
+export type { Diagram, UseCaseDiagram, SequenceDiagram, ErDiagram } from './diagrams/ir.js';
+export type { Renderer } from './render/renderer.js';
+export { RendererRegistry } from './render/renderer.js';
+export { MermaidRenderer } from './render/mermaid/index.js';
+export { createDefaultGenerators, createDefaultRenderers } from './diagrams/index.js';
+export { installHook, uninstallHook, hookStatus } from './hooks/install.js';
+export { buildContext, formatContext } from './cli/context.js';

@@ -1,0 +1,367 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden diagrams > go-shop erd 1`] = `
+"erDiagram
+%% note[info]: No entities found. UMLFlow understands SQL DDL, Prisma, TypeORM, JPA, SQLAlchemy, Django and GORM models.
+"
+`;
+
+exports[`golden diagrams > go-shop sequence 1`] = `
+"sequenceDiagram
+  title Sequence Diagram
+  autonumber
+  actor __unknown_actor__ as Unknown actor
+  participant order_handler as OrderHandler
+  participant order_service as OrderService
+  participant client as Client
+  participant order_repository as OrderRepository
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Create Order ?
+    __unknown_actor__->>order_handler: ANY /orders
+    order_handler->>order_service: Create
+    order_service->>client: Charge ?
+    order_service->>order_repository: Save
+    order_service-->>order_handler: result
+    order_handler-->>__unknown_actor__: response
+  end
+%% note[unknown]: 1 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+%% note[inferred]: 1 interaction(s) were resolved by naming heuristics rather than typed references (marked "?").
+"
+`;
+
+exports[`golden diagrams > go-shop usecase 1`] = `
+"flowchart LR
+  actor___unknown_actor__(["👤 Unknown actor ??"])
+  subgraph system ["System"]
+    direction TB
+    uc_order_handler_create(["Create Order ?"])
+  end
+  actor___unknown_actor__ -.-> uc_order_handler_create
+%% note[unknown]: 1 use case(s) have no known actor. Declare one with \`umlflow declare actor <Name> --for <Component>\` or answer \`umlflow semantic questions\`.
+%% note[inferred]: 1 use case name(s) were derived from operation names (marked "?").
+"
+`;
+
+exports[`golden diagrams > java-shop erd 1`] = `
+"erDiagram
+  Customer {
+    Long id PK
+    String email UK
+  }
+  Order {
+    Long id PK
+    BigDecimal total "not null"
+    fk customer_id FK "→ Customer"
+  }
+  OrderItem {
+    Long id PK
+    String sku
+    fk order_id FK "→ Order"
+  }
+  Order }o--|| Customer : "customer"
+  OrderItem }o--|| Order : "order"
+"
+`;
+
+exports[`golden diagrams > java-shop sequence 1`] = `
+"sequenceDiagram
+  title Sequence Diagram
+  autonumber
+  actor __unknown_actor__ as Unknown actor
+  participant order_controller as OrderController
+  participant order_service as OrderService
+  participant payment_gateway as PaymentGateway
+  participant order_repository as OrderRepository
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Create Order ?
+    __unknown_actor__->>order_controller: POST /orders
+    order_controller->>order_service: create
+    order_service->>payment_gateway: charge
+    order_service->>order_repository: save
+    order_service-->>order_controller: result
+    order_controller-->>__unknown_actor__: response
+  end
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Get Order ?
+    __unknown_actor__->>order_controller: GET /orders/{id}
+    order_controller->>order_service: find
+    order_service->>order_repository: findById
+    order_service-->>order_controller: result
+    order_controller-->>__unknown_actor__: response
+  end
+%% note[unknown]: 2 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+%% note[info]: Flow "Create Order": 1 call(s) target components whose operation could not be resolved; their downstream calls are not shown.
+%% note[info]: Flow "Get Order": 1 call(s) target components whose operation could not be resolved; their downstream calls are not shown.
+"
+`;
+
+exports[`golden diagrams > java-shop usecase 1`] = `
+"flowchart LR
+  actor___unknown_actor__(["👤 Unknown actor ??"])
+  subgraph system ["System"]
+    direction TB
+    uc_order_controller_create(["Create Order ?"])
+    uc_order_controller_get(["Get Order ?"])
+  end
+  actor___unknown_actor__ -.-> uc_order_controller_create
+  actor___unknown_actor__ -.-> uc_order_controller_get
+%% note[unknown]: 2 use case(s) have no known actor. Declare one with \`umlflow declare actor <Name> --for <Component>\` or answer \`umlflow semantic questions\`.
+%% note[inferred]: 2 use case name(s) were derived from operation names (marked "?").
+"
+`;
+
+exports[`golden diagrams > prisma-shop erd 1`] = `
+"erDiagram
+  Order {
+    Int id PK
+    Decimal total "not null"
+    Int customerId FK "→ User"
+  }
+  OrderItem {
+    Int id PK
+    String sku "not null"
+    Int orderId FK "→ Order"
+  }
+  Tag {
+    Int id PK
+    String name "not null"
+  }
+  User {
+    Int id PK
+    String email UK "not null"
+    Role role "not null"
+  }
+  Order }o--|| User : "customer"
+  OrderItem }o--|| Order : "order"
+  Tag }o--o{ User : "users"
+"
+`;
+
+exports[`golden diagrams > py-shop erd 1`] = `
+"erDiagram
+  Customer {
+    Integer id PK
+    String(255) email UK "not null"
+  }
+  Order {
+    Integer id PK
+    Numeric(10,2) total "not null"
+    Integer customer_id FK "→ customers.id"
+  }
+  Order }o--|| Customer : "customer_id"
+"
+`;
+
+exports[`golden diagrams > py-shop sequence 1`] = `
+"sequenceDiagram
+  title Sequence Diagram
+  autonumber
+  actor __unknown_actor__ as Unknown actor
+  participant api as api
+  participant order_service as OrderService
+  participant payment_client as PaymentClient
+  participant ext_requests as ☁ requests
+  participant order_repository as OrderRepository
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Create Order ?
+    __unknown_actor__->>api: POST /orders
+    api->>order_service: create_order
+    order_service->>payment_client: charge
+    payment_client->>ext_requests: post
+    order_service->>order_repository: save
+    order_service-->>api: result
+    api-->>__unknown_actor__: response
+  end
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Get Order ?
+    __unknown_actor__->>api: GET /orders/{order_id}
+    api-->>__unknown_actor__: response
+  end
+%% note[unknown]: 2 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+"
+`;
+
+exports[`golden diagrams > py-shop usecase 1`] = `
+"flowchart LR
+  actor___unknown_actor__(["👤 Unknown actor ??"])
+  subgraph system ["System"]
+    direction TB
+    uc_api_create_order(["Create Order ?"])
+    uc_api_get_order(["Get Order ?"])
+  end
+  actor___unknown_actor__ -.-> uc_api_create_order
+  actor___unknown_actor__ -.-> uc_api_get_order
+%% note[unknown]: 2 use case(s) have no known actor. Declare one with \`umlflow declare actor <Name> --for <Component>\` or answer \`umlflow semantic questions\`.
+%% note[inferred]: 2 use case name(s) were derived from operation names (marked "?").
+"
+`;
+
+exports[`golden diagrams > ts-shop erd 1`] = `
+"erDiagram
+  audit_log {
+    BIGSERIAL id PK
+    UUID actor_id FK "→ users.id"
+    TEXT message
+  }
+  Order {
+    UUID id PK
+    UUID customer_id FK "→ users.id"
+    NUMERIC(10,2) total "not null"
+    VARCHAR(32) status
+  }
+  OrderItem {
+    SERIAL id PK
+    UUID order_id FK "→ orders.id"
+    VARCHAR(64) sku "not null"
+    INT quantity "not null"
+  }
+  User {
+    UUID id PK
+    VARCHAR(255) email UK "not null"
+    TIMESTAMP_WITH_TIME_ZONE created_at
+  }
+  audit_log }o--|| User : "actor_id"
+  Order }o--|| User : "customer_id"
+  OrderItem }o--|| Order : "order_id"
+"
+`;
+
+exports[`golden diagrams > ts-shop erd with aliases, labels and explicit relationships 1`] = `
+"erDiagram
+  audit_log["AuditLog"] {
+    BIGSERIAL id PK
+    UUID actor_id FK "→ users.id"
+    TEXT message
+  }
+  Order {
+    UUID id PK
+    UUID customer_id FK "→ users.id"
+    NUMERIC(10,2) total "not null"
+    VARCHAR(32) status
+  }
+  User {
+    UUID id PK
+    VARCHAR(255) email UK "not null"
+    TIMESTAMP_WITH_TIME_ZONE created_at
+  }
+  audit_log }o--|| User : "actor_id"
+  Order }o--|| User : "customer_id"
+  User ||--o{ audit_log : "writes"
+"
+`;
+
+exports[`golden diagrams > ts-shop inferred login sequence with declared actor and overrides 1`] = `
+"sequenceDiagram
+  title User login
+  autonumber
+  actor actor_visitor as Visitor
+  box Auth
+    participant auth_controller as AuthController
+    participant auth_service as AuthService
+  end
+  participant session_manager as Sessions
+  rect rgb(245, 245, 245)
+    Note over actor_visitor: Login ?
+    actor_visitor->>auth_controller: POST /auth/login
+    auth_controller->>auth_service: login
+    auth_service->>session_manager: create
+    auth_service-->>auth_controller: result
+    auth_controller-->>actor_visitor: response
+  end
+  %% custom line
+"
+`;
+
+exports[`golden diagrams > ts-shop sequence 1`] = `
+"sequenceDiagram
+  title Sequence Diagram
+  autonumber
+  actor __unknown_actor__ as Unknown actor
+  participant auth_controller as AuthController
+  participant auth_service as AuthService
+  participant user_repository as UserRepository
+  participant db_user as 🗄 User
+  participant session_manager as SessionManager
+  participant order_controller as OrderController
+  participant order_service as OrderService
+  participant logger as Logger
+  participant inventory_service as InventoryService
+  participant inventory_repository as InventoryRepository
+  participant payment_service as PaymentService
+  participant payment_gateway as PaymentGateway
+  participant order_repository as OrderRepository
+  participant db_order as 🗄 Order
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Login ?
+    __unknown_actor__->>auth_controller: POST /auth/login
+    auth_controller->>auth_service: login
+    auth_service->>user_repository: findByEmail
+    user_repository->>db_user: read User
+    auth_service->>session_manager: create
+    auth_service-->>auth_controller: result
+    auth_controller-->>__unknown_actor__: response
+  end
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Create Order ?
+    __unknown_actor__->>order_controller: POST /orders
+    order_controller->>order_service: createOrder
+    order_service->>logger: info
+    order_service->>inventory_service: reserve
+    inventory_service->>inventory_repository: decrement
+    order_service->>payment_service: charge
+    payment_service->>payment_gateway: authorize
+    payment_service->>payment_gateway: capture
+    order_service->>order_repository: save
+    order_repository->>db_order: write Order
+    order_service-->>order_controller: result
+    order_controller-->>__unknown_actor__: response
+  end
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Get Order ?
+    __unknown_actor__->>order_controller: GET /orders/:id
+    order_controller->>order_service: findOrder
+    order_service->>order_repository: findById
+    order_repository->>db_order: read Order
+    order_service-->>order_controller: result
+    order_controller-->>__unknown_actor__: response
+  end
+%% note[unknown]: 3 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+"
+`;
+
+exports[`golden diagrams > ts-shop use cases with declared actors and groups 1`] = `
+"flowchart LR
+  actor_customer(["👤 Customer"])
+  actor_visitor(["👤 Visitor ?"])
+  subgraph system ["System"]
+    direction TB
+    subgraph group_Orders ["Orders"]
+      uc_order_controller_create(["Create Order ?"])
+    end
+    uc_auth_controller_login(["Sign in ?"])
+    uc_order_controller_get(["Get Order ?"])
+  end
+  actor_visitor -.-> uc_auth_controller_login
+  actor_customer --> uc_order_controller_create
+  actor_customer --> uc_order_controller_get
+  uc_order_controller_create -.->|«include»| uc_auth_controller_login
+%% note[inferred]: 3 use case name(s) were derived from operation names (marked "?").
+"
+`;
+
+exports[`golden diagrams > ts-shop usecase 1`] = `
+"flowchart LR
+  actor___unknown_actor__(["👤 Unknown actor ??"])
+  subgraph system ["System"]
+    direction TB
+    uc_auth_controller_login(["Login ?"])
+    uc_order_controller_create(["Create Order ?"])
+    uc_order_controller_get(["Get Order ?"])
+  end
+  actor___unknown_actor__ -.-> uc_auth_controller_login
+  actor___unknown_actor__ -.-> uc_order_controller_create
+  actor___unknown_actor__ -.-> uc_order_controller_get
+%% note[unknown]: 3 use case(s) have no known actor. Declare one with \`umlflow declare actor <Name> --for <Component>\` or answer \`umlflow semantic questions\`.
+%% note[inferred]: 3 use case name(s) were derived from operation names (marked "?").
+"
+`;

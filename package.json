@@ -1,0 +1,57 @@
+{
+  "name": "umlflow",
+  "version": "0.1.0",
+  "description": "Language-agnostic code understanding and incremental UML (Mermaid) synchronization for Claude Code and the CLI",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "umlflow": "./bin/umlflow.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "bin",
+    "dist",
+    "skill",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run clean && npm run build",
+    "pretest": "npm run build"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.2",
+    "@vscode/tree-sitter-wasm": "0.3.1",
+    "commander": "^15.0.0",
+    "picocolors": "^1.1.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.7"
+  },
+  "keywords": [
+    "uml",
+    "mermaid",
+    "architecture",
+    "diagrams",
+    "sequence-diagram",
+    "erd",
+    "use-case",
+    "claude-code",
+    "tree-sitter",
+    "incremental"
+  ]
+}

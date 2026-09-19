@@ -1,0 +1,40 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model User {
+  id     Int     @id @default(autoincrement())
+  email  String  @unique
+  role   Role    @default(CUSTOMER)
+  orders Order[]
+  tags   Tag[]
+  @@map("users")
+}
+
+model Order {
+  id         Int       @id @default(autoincrement())
+  total      Decimal
+  customer   User      @relation(fields: [customerId], references: [id])
+  customerId Int
+  items      OrderItem[]
+  @@map("orders")
+}
+
+model OrderItem {
+  id      Int   @id @default(autoincrement())
+  sku     String
+  order   Order @relation(fields: [orderId], references: [id])
+  orderId Int
+}
+
+model Tag {
+  id    Int    @id @default(autoincrement())
+  name  String
+  users User[]
+}
