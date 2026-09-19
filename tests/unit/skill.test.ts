@@ -23,13 +23,16 @@ describe('Claude Code skill', () => {
     expect(fm).not.toBeNull();
     expect(fm![1]).toMatch(/^name: umlflow$/m);
     expect(fm![1]).toMatch(/^description: .+/m);
-    expect(text.split(/\s+/).length).toBeLessThan(1200);
+    expect(text.split(/\s+/).length).toBeLessThan(1500);
   });
 
   it('teaches state-first, targeted context, correct commands and honesty rules', async () => {
     const text = await fs.readFile(SKILL, 'utf8');
+    expect(text).toContain('# /umlflow');
+    expect(text).toContain('## Usage');
+    expect(text).toMatch(/\/umlflow --help/);
     expect(text).toContain('umlflow context');
-    expect(text).toMatch(/never re-reads the whole repository|Never scan the repository/i);
+    expect(text).toMatch(/never re-reads the whole repository|never the repository/i);
     for (const cmd of ['umlflow generate', 'umlflow update', 'umlflow check', 'umlflow diff', 'umlflow semantic questions', 'umlflow semantic answer', 'umlflow declare', 'umlflow install-hooks']) {
       expect(text).toContain(cmd);
     }
@@ -42,11 +45,11 @@ describe('Claude Code skill', () => {
 
   it('installs into the project and is idempotent', async () => {
     root = await tempRepo('ts-shop', { git: true });
-    const r1 = spawnSync(process.execPath, [BIN, 'install-skill', '--json'], { cwd: root, encoding: 'utf8' });
+    const r1 = spawnSync(process.execPath, [BIN, 'install-skill', '--project', '--json'], { cwd: root, encoding: 'utf8' });
     expect(r1.status).toBe(0);
     const target = path.join(root, '.claude/skills/umlflow/SKILL.md');
     expect(await fs.readFile(target, 'utf8')).toBe(await fs.readFile(SKILL, 'utf8'));
-    const r2 = spawnSync(process.execPath, [BIN, 'install-skill', '--json'], { cwd: root, encoding: 'utf8' });
+    const r2 = spawnSync(process.execPath, [BIN, 'install-skill', '--project', '--json'], { cwd: root, encoding: 'utf8' });
     expect(JSON.parse(r2.stdout).status).toBe('unchanged');
   });
 

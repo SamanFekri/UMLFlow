@@ -1,0 +1,40 @@
+# UMLFlow semantic facts.
+# Entries with source "user" are declared by people and never overwritten.
+# Entries with source "semantic-inference" were established once and are reused.
+
+# UMLFlow semantic facts.
+# Entries with source "user" are declared by people and never overwritten.
+# Entries with source "semantic-inference" were established once and are reused.
+
+# UMLFlow semantic facts.
+# Entries with source "user" are declared by people and never overwritten.
+# Entries with source "semantic-inference" were established once and are reused.
+
+# UMLFlow semantic facts.
+# Entries with source "user" are declared by people and never overwritten.
+# Entries with source "semantic-inference" were established once and are reused.
+
+# UMLFlow semantic facts.
+# Entries with source "user" were declared by people and are never overwritten.
+# Entries with source "semantic-inference" were established once (e.g. by Claude) and are reused.
+version: 1
+components:
+  OrderController:
+    actor: Customer
+    source: user
+  AuthController:
+    actor: Visitor
+    source: user
+  Logger:
+    ignore: true
+    source: user
+actors:
+  Customer:
+    source: user
+  Visitor:
+    source: user
+operations:
+  OrderController.create:
+    useCase: Place order
+    source: user
+entities: {}

@@ -41,8 +41,10 @@ and runs the first analysis (`--no-analyze` skips it).
 ```bash
 umlflow install-hooks                 # pre-commit in "check" mode (default)
 umlflow install-hooks --mode update   # auto-update and stage diagrams on commit
-umlflow install-skill                 # .claude/skills/umlflow/SKILL.md (or --global)
+umlflow install-skill                 # ~/.claude/skills/umlflow/SKILL.md → /umlflow in every project (--project for one repo)
 ```
+
+From a checkout, `./install.sh` does the build, the global CLI install and the skill install in one step.
 
 ## Uninstall
 

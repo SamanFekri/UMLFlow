@@ -17,13 +17,13 @@ export function bundledSkillPath(): string {
 export function registerSkill(program: Command): void {
   program
     .command('install-skill')
-    .description('Install the UMLFlow Claude Code skill (.claude/skills/umlflow/SKILL.md)')
-    .option('--global', 'install into ~/.claude/skills instead of the project')
-    .action(async (opts: { global?: boolean }, cmd: Command) => {
+    .description('Install the /umlflow Claude Code skill (default: ~/.claude/skills/umlflow, available in every project)')
+    .option('--project', 'install into this project\'s .claude/skills instead of globally')
+    .action(async (opts: { project?: boolean }, cmd: Command) => {
       const out = makeOut(cmd);
       const g = globalOptions(cmd);
       const root = (await ConfigStore.find(g.cwd)) ?? g.cwd;
-      const base = opts.global ? path.join(os.homedir(), '.claude', 'skills') : path.join(root, '.claude', 'skills');
+      const base = opts.project ? path.join(root, '.claude', 'skills') : path.join(os.homedir(), '.claude', 'skills');
       const target = path.join(base, 'umlflow', 'SKILL.md');
       const content = await fs.readFile(bundledSkillPath(), 'utf8');
       await fs.mkdir(path.dirname(target), { recursive: true });
@@ -36,7 +36,7 @@ export function registerSkill(program: Command): void {
       }
       if (status !== 'unchanged') await fs.writeFile(target, content, 'utf8');
       out.line(`${pc.green('✓')} skill ${status}: ${target}`);
-      out.line(pc.dim('Claude Code will load it when UML, diagrams or architecture come up. Try: "Create a sequence diagram for the checkout flow."'));
+      out.line(pc.dim('Type /umlflow in Claude Code (any project). Try: /umlflow sequence "checkout"  or  /umlflow --help'));
       out.emitJson({ target, status });
     });
 }

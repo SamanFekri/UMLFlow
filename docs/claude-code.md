@@ -1,13 +1,20 @@
 # Claude Code integration
 
-UMLFlow ships a Claude Code skill (`skill/SKILL.md`). Install it per project or globally:
+UMLFlow ships a Claude Code skill (`skill/SKILL.md`) invoked as **`/umlflow`**. Install it once:
 
 ```bash
-umlflow install-skill            # .claude/skills/umlflow/SKILL.md
-umlflow install-skill --global   # ~/.claude/skills/umlflow/SKILL.md
+./install.sh                     # from a checkout: CLI + ~/.claude/skills/umlflow/SKILL.md
+# or, once published:
+npm install -g umlflow && umlflow install-skill           # global (every project)
+umlflow install-skill --project                           # this project's .claude/skills only
 ```
 
-Claude loads it when UML, diagrams, architecture, or a `.umlflow/` directory come up.
+Then in any project: `/umlflow`, `/umlflow sequence "checkout"`, `/umlflow erd`, `/umlflow questions`,
+`/umlflow diff`, `/umlflow update`, `/umlflow hooks check`, `/umlflow "<plain language>"`, `/umlflow --help`.
+Claude also loads the skill automatically when UML, diagrams, architecture, or a `.umlflow/` directory come up.
+
+The skill itself first checks that the `umlflow` CLI is installed (installing it with npm if not), initializes
+the project on first use, and always reads `umlflow context` before acting.
 
 ## What the skill teaches Claude
 

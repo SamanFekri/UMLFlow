@@ -28,7 +28,7 @@ export class UseCaseGenerator implements DiagramGenerator {
     const diagram: UseCaseDiagram = {
       name,
       type: 'usecase',
-      title: definition.description ?? humanize(name),
+      title: humanize(name),
       description: definition.description,
       notes,
       rawLines: ov.rawLines,

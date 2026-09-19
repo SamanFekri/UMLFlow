@@ -158,7 +158,7 @@ export class SequenceGenerator implements DiagramGenerator {
     const diagram: SequenceDiagram = {
       name,
       type: 'sequence',
-      title: definition.description ?? humanize(name),
+      title: humanize(name),
       description: definition.description,
       notes,
       rawLines: ov.rawLines,

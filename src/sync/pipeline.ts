@@ -395,7 +395,6 @@ export class Umlflow {
     if (about) {
       inference = inferScope(about, def.type, model);
       def.inferredScope = inference.scope;
-      if (!def.description) def.description = about;
     }
     await this.configStore.setDiagram(name, def);
     this.config = this.configStore.get();

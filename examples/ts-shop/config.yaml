@@ -1,0 +1,88 @@
+# UMLFlow project configuration.
+# Source code is the source of truth; diagrams under output.dir are generated views.
+# Edit diagram definitions/overrides here. UMLFlow only writes "inferredScope" fields.
+# Docs: docs/configuration.md
+
+version: 1
+analysis:
+  include: []
+  exclude:
+    - "**/*.test.*"
+    - "**/*.spec.*"
+    - "**/__tests__/**"
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/*.d.ts"
+  languages: []
+  maxFileSize: 1000000
+  maxCallDepth: 6
+output:
+  dir: .umlflow/diagrams
+  format: md
+renderer: mermaid
+git:
+  hooks:
+    pre-commit: check
+diagrams:
+  system-usecases:
+    type: usecase
+    description: Actors and the capabilities the system exposes to them
+  main-flows:
+    type: sequence
+    description: Interactions for the main entry points of the system
+  database-erd:
+    type: erd
+    description: Database entities and their relationships
+  login-flow:
+    type: sequence
+    description: User login and session creation
+    inferredScope:
+      query: login
+      files:
+        - src/auth/auth.controller.ts
+        - src/auth/auth.service.ts
+        - src/auth/session.manager.ts
+        - src/users/user.repository.ts
+      components:
+        - AuthController
+        - AuthService
+        - SessionManager
+        - UserRepository
+      entryPoints:
+        - AuthController.login
+      entities:
+        - User
+      inferredAt: 2026-09-19T10:51:13.186Z
+  checkout-flow:
+    type: sequence
+    description: Placing and retrieving orders
+    inferredScope:
+      query: orders
+      files:
+        - src/inventory/inventory.repository.ts
+        - src/inventory/inventory.service.ts
+        - src/orders/order-item.entity.ts
+        - src/orders/order.controller.ts
+        - src/orders/order.entity.ts
+        - src/orders/order.repository.ts
+        - src/orders/order.service.ts
+        - src/payments/payment.gateway.ts
+        - src/payments/payment.service.ts
+        - src/shared/logger.ts
+      components:
+        - InventoryRepository
+        - InventoryService
+        - Logger
+        - Order
+        - OrderController
+        - OrderItem
+        - OrderRepository
+        - OrderService
+        - PaymentGateway
+        - PaymentService
+      entryPoints:
+        - OrderController.create
+        - OrderController.get
+      entities:
+        - Order
+      inferredAt: 2026-09-19T10:51:13.296Z

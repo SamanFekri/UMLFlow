@@ -23,7 +23,7 @@ Exit codes: `0` success · `1` stale diagrams (`check`) or diagram errors · `2`
 | `umlflow declare usecase <Op> "<name>"` · `declare flow <Op> "<name>"` | Name a use case / flow. |
 | `umlflow declare ignore <id> [--undo]` | Hide a component / operation / entity everywhere. |
 | `umlflow install-hooks [--hooks list] [--mode m]` · `uninstall-hooks` | Manage git hooks. |
-| `umlflow install-skill [--global]` | Install the Claude Code skill. |
+| `umlflow install-skill [--project]` | Install the `/umlflow` Claude Code skill (global by default). |
 
 ## `generate` options
 

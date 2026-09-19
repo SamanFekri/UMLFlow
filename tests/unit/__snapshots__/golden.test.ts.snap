@@ -252,7 +252,7 @@ exports[`golden diagrams > ts-shop erd with aliases, labels and explicit relatio
 
 exports[`golden diagrams > ts-shop inferred login sequence with declared actor and overrides 1`] = `
 "sequenceDiagram
-  title User login
+  title Login Flow
   autonumber
   actor actor_visitor as Visitor
   box Auth

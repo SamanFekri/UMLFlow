@@ -15,7 +15,8 @@
     "skill",
     "docs",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "examples"
   ],
   "engines": {
     "node": ">=20"

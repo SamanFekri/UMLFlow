@@ -64,7 +64,12 @@ export function buildFlows(model: SystemModel, semantics: SemanticsData, maxDept
       nameProvenance = provenanceFor(sem.source, 'semantics.yaml');
     } else if (useCase) {
       name = useCase.name;
-      nameProvenance = useCase.nameProvenance.confidence === 'unknown' ? unknownFact([op.ref]) : inferredFact([op.ref], 'named after use case');
+      nameProvenance =
+        useCase.nameProvenance.confidence === 'unknown'
+          ? unknownFact([op.ref])
+          : useCase.nameProvenance.confidence === 'declared'
+            ? useCase.nameProvenance
+            : inferredFact([op.ref], 'named after use case');
     } else {
       name = op.name;
       nameProvenance = inferredFact([op.ref], 'named after operation');

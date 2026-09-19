@@ -24,7 +24,7 @@ export class ErdGenerator implements DiagramGenerator {
     const diagram: ErDiagram = {
       name,
       type: 'erd',
-      title: definition.description ?? humanize(name),
+      title: humanize(name),
       description: definition.description,
       notes,
       rawLines: ov.rawLines,
