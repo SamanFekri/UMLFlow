@@ -4,12 +4,14 @@ Requirements: Node.js ≥ 20 and git (optional but recommended — without git, 
 content hashes only).
 
 ```bash
-# global
+# nothing to install — run any command through npx
+npx umlflow --help
+
+# global CLI
 npm install -g umlflow
 
 # per project (recommended for teams and CI: the hook finds ./node_modules/.bin/umlflow)
 npm install --save-dev umlflow
-npx umlflow --help
 ```
 
 No native build step: parsers are WebAssembly grammars bundled with `@vscode/tree-sitter-wasm`.
@@ -41,8 +43,11 @@ and runs the first analysis (`--no-analyze` skips it).
 ```bash
 umlflow install-hooks                 # pre-commit in "check" mode (default)
 umlflow install-hooks --mode update   # auto-update and stage diagrams on commit
-umlflow install-skill                 # ~/.claude/skills/umlflow/SKILL.md → /umlflow in every project (--project for one repo)
+npx umlflow install-skill             # ~/.claude/skills/umlflow/SKILL.md → /umlflow in every project (--project for one repo)
 ```
+
+The skill honours `CLAUDE_CONFIG_DIR` when Claude Code's config directory has been relocated. Re-run
+`npx umlflow install-skill` after upgrading; it is idempotent and reports `installed`, `updated` or `unchanged`.
 
 From a checkout, `./install.sh` does the build, the global CLI install and the skill install in one step.
 

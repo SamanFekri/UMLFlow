@@ -1,5 +1,9 @@
 # UMLFlow
 
+[![npm](https://img.shields.io/npm/v/umlflow.svg)](https://www.npmjs.com/package/umlflow)
+[![node](https://img.shields.io/node/v/umlflow.svg)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/umlflow.svg)](LICENSE)
+
 **Language-agnostic code understanding and incremental UML synchronization — for the CLI and for Claude Code.**
 
 UMLFlow analyses a repository once, builds a compact *System Model* of its structure and behaviour, generates
@@ -16,30 +20,32 @@ SOURCE CODE ─► change detection (git + hashes) ─► affected scope ─► 
            ─► Use Case / Sequence / ERD ─► Mermaid ─► .umlflow/diagrams/*.md
 ```
 
-## Why
+## Quick start
 
-* **Token-efficient by design.** Claude never has to re-read a repository to draw or update a diagram:
-  `umlflow context` summarises what is already known in a few hundred tokens, and only open *semantic
-  questions* ("which actor calls `OrderController`?") need interpretation.
-* **Incremental.** Content hashes + git detect what changed; a dependency-aware pipeline finds affected
-  symbols and diagrams; unrelated diagrams are never touched.
-* **Honest.** Every fact carries provenance: deterministic (from code), inferred (heuristics) or declared
-  (by you). Uncertain facts are marked, never presented as truth. User declarations are never overwritten.
-* **Language-agnostic.** Parsers sit at the edge (TypeScript/JavaScript, Python, Java, Go, SQL DDL, Prisma
-  today); the model, generators and renderer never see a language-specific AST.
-* **Safe.** Generated blocks are replaced in place; manual sections and everything else you write survive.
-  Git hooks are installed as clearly marked managed sections next to your existing hook logic.
+Requirements: **Node.js ≥ 20**. No native build step — parsers are WebAssembly grammars bundled with
+`@vscode/tree-sitter-wasm`, so the same package works on macOS, Linux and Windows.
 
-## Install (CLI + `/umlflow` skill)
+### 1. Install the `/umlflow` Claude Code skill (one command)
 
 ```bash
-git clone <this repo> && cd UMLFlow
-./install.sh                      # builds, installs the `umlflow` CLI globally, installs ~/.claude/skills/umlflow
+npx umlflow install-skill
 ```
 
-(Once published: `npm install -g umlflow && umlflow install-skill`.)
+This copies the bundled skill to `~/.claude/skills/umlflow/SKILL.md` (`%USERPROFILE%\.claude\skills\umlflow\SKILL.md`
+on Windows, or `$CLAUDE_CONFIG_DIR/skills/umlflow/SKILL.md` if you relocate Claude Code's config directory).
+It is idempotent — run it again after upgrading to refresh the skill:
 
-## Use it in Claude Code
+```
+✓ skill installed: /Users/you/.claude/skills/umlflow/SKILL.md
+```
+
+Prefer a per-repository skill instead of a user-wide one?
+
+```bash
+npx umlflow install-skill --project     # → ./.claude/skills/umlflow/SKILL.md
+```
+
+### 2. Use it in Claude Code
 
 Open Claude Code in any project and type:
 
@@ -58,31 +64,65 @@ Open Claude Code in any project and type:
 The skill makes Claude read UMLFlow's cached state first (`umlflow context`), delegate analysis to the CLI,
 interpret only the open semantic questions with targeted context, respect your overrides, and report
 inferred vs. deterministic facts honestly. Diagrams land in `.umlflow/diagrams/<name>.md` (Markdown +
-Mermaid, so GitHub renders them).
+Mermaid, so GitHub renders them). The skill installs the CLI on demand the first time it runs.
 
-## Use it from the terminal
+### 3. Or use it straight from the terminal
 
-The same engine is a plain CLI:
+Every command works through `npx` with nothing installed globally:
 
 ```bash
-umlflow init -y
-umlflow generate --type sequence --name checkout --about "checkout"
-umlflow semantic questions
-umlflow declare actor Customer --for OrderController
-umlflow update && umlflow check
-umlflow install-hooks --mode update
+npx umlflow init -y                                               # create .umlflow/ and build all diagrams
+npx umlflow generate --type sequence --name checkout --about "checkout"
+npx umlflow semantic questions                                    # what the code alone cannot tell
+npx umlflow declare actor Customer --for OrderController
+npx umlflow update && npx umlflow check                           # sync, then verify nothing is stale
+npx umlflow install-hooks --mode update                           # pre-commit: auto-update diagrams
+npx umlflow --help
 ```
+
+## Installation options
+
+| Goal | Command |
+|---|---|
+| Try it / one-off | `npx umlflow <command>` |
+| Global CLI (`umlflow` on your PATH) | `npm install -g umlflow` |
+| Per project (teams & CI — hooks find `./node_modules/.bin/umlflow`) | `npm install --save-dev umlflow` |
+| Claude Code skill, user-wide | `npx umlflow install-skill` |
+| Claude Code skill, this repo only | `npx umlflow install-skill --project` |
+| From a git checkout | `./install.sh` (builds, installs the CLI globally and the skill) |
+
+### Uninstall
+
+```bash
+umlflow uninstall-hooks                     # remove the managed git-hook sections
+rm -rf .umlflow ~/.claude/skills/umlflow    # project state and the skill
+npm uninstall -g umlflow                    # the CLI, if installed globally
+```
+
+## Why
+
+* **Token-efficient by design.** Claude never has to re-read a repository to draw or update a diagram:
+  `umlflow context` summarises what is already known in a few hundred tokens, and only open *semantic
+  questions* ("which actor calls `OrderController`?") need interpretation.
+* **Incremental.** Content hashes + git detect what changed; a dependency-aware pipeline finds affected
+  symbols and diagrams; unrelated diagrams are never touched.
+* **Honest.** Every fact carries provenance: deterministic (from code), inferred (heuristics) or declared
+  (by you). Uncertain facts are marked, never presented as truth. User declarations are never overwritten.
+* **Language-agnostic.** Parsers sit at the edge (TypeScript/JavaScript, Python, Java, Go, SQL DDL, Prisma
+  today); the model, generators and renderer never see a language-specific AST.
+* **Safe.** Generated blocks are replaced in place; manual sections and everything else you write survive.
+  Git hooks are installed as clearly marked managed sections next to your existing hook logic.
 
 ## What it produces
 
 Every diagram below was generated by UMLFlow from the sample NestJS/TypeORM project in
-[`tests/fixtures/repos/ts-shop`](tests/fixtures/repos/ts-shop) — the complete output (including the
-`config.yaml` and `semantics.yaml` that drove it) is in [`examples/ts-shop/`](examples/ts-shop/).
+[`tests/fixtures/repos/ts-shop`](https://github.com/SamanFekri/UMLFlow/blob/main/tests/fixtures/repos/ts-shop) — the complete output (including the
+`config.yaml` and `semantics.yaml` that drove it) is in [`examples/ts-shop/`](https://github.com/SamanFekri/UMLFlow/blob/main/examples/ts-shop/).
 Labels ending in `?` are inferred from naming; everything else is read from the code or declared.
 
 ### Use case — `/umlflow usecase`
 
-[`examples/ts-shop/system-usecases.md`](examples/ts-shop/system-usecases.md)
+[`examples/ts-shop/system-usecases.md`](https://github.com/SamanFekri/UMLFlow/blob/main/examples/ts-shop/system-usecases.md)
 
 ```mermaid
 flowchart LR
@@ -101,7 +141,7 @@ flowchart LR
 
 ### Sequence, scoped by topic — `/umlflow sequence "orders"`
 
-[`examples/ts-shop/checkout-flow.md`](examples/ts-shop/checkout-flow.md) — scope was inferred from the word
+[`examples/ts-shop/checkout-flow.md`](https://github.com/SamanFekri/UMLFlow/blob/main/examples/ts-shop/checkout-flow.md) — scope was inferred from the word
 "orders"; `Logger` is hidden via `umlflow declare ignore Logger`.
 
 ```mermaid
@@ -144,7 +184,7 @@ sequenceDiagram
 
 ### Sequence, scoped by topic — `/umlflow sequence "login"`
 
-[`examples/ts-shop/login-flow.md`](examples/ts-shop/login-flow.md)
+[`examples/ts-shop/login-flow.md`](https://github.com/SamanFekri/UMLFlow/blob/main/examples/ts-shop/login-flow.md)
 
 ```mermaid
 sequenceDiagram
@@ -170,7 +210,7 @@ sequenceDiagram
 
 ### ERD — `/umlflow erd`
 
-[`examples/ts-shop/database-erd.md`](examples/ts-shop/database-erd.md) — SQL migration tables and
+[`examples/ts-shop/database-erd.md`](https://github.com/SamanFekri/UMLFlow/blob/main/examples/ts-shop/database-erd.md) — SQL migration tables and
 `@Entity` classes describing the same tables are merged into one entity each.
 
 ```mermaid
@@ -203,23 +243,28 @@ erDiagram
 ```
 
 The whole-system sequence diagram (every entry point) is in
-[`examples/ts-shop/main-flows.md`](examples/ts-shop/main-flows.md).
+[`examples/ts-shop/main-flows.md`](https://github.com/SamanFekri/UMLFlow/blob/main/examples/ts-shop/main-flows.md).
 
 ## Documentation
 
-* [Architecture](docs/architecture.md) · [Installation](docs/installation.md) · [Quick start](docs/quick-start.md)
-* [CLI](docs/cli.md) · [Configuration](docs/configuration.md) · [Diagrams, definitions & overrides](docs/diagrams.md)
-* [Incremental analysis, System Model & cache](docs/incremental-analysis.md)
-* [Claude Code integration](docs/claude-code.md) · [Git hooks & CI](docs/git-hooks-and-ci.md)
-* [Supported analysis](docs/supported-analysis.md) · [Extending (adapters, generators, renderers)](docs/extending.md)
-* [Troubleshooting](docs/troubleshooting.md) · [Examples](docs/examples.md) · [Implementation plan](docs/plan.md)
+* [Architecture](https://github.com/SamanFekri/UMLFlow/blob/main/docs/architecture.md) · [Installation](https://github.com/SamanFekri/UMLFlow/blob/main/docs/installation.md) · [Quick start](https://github.com/SamanFekri/UMLFlow/blob/main/docs/quick-start.md)
+* [CLI](https://github.com/SamanFekri/UMLFlow/blob/main/docs/cli.md) · [Configuration](https://github.com/SamanFekri/UMLFlow/blob/main/docs/configuration.md) · [Diagrams, definitions & overrides](https://github.com/SamanFekri/UMLFlow/blob/main/docs/diagrams.md)
+* [Incremental analysis, System Model & cache](https://github.com/SamanFekri/UMLFlow/blob/main/docs/incremental-analysis.md)
+* [Claude Code integration](https://github.com/SamanFekri/UMLFlow/blob/main/docs/claude-code.md) · [Git hooks & CI](https://github.com/SamanFekri/UMLFlow/blob/main/docs/git-hooks-and-ci.md)
+* [Supported analysis](https://github.com/SamanFekri/UMLFlow/blob/main/docs/supported-analysis.md) · [Extending (adapters, generators, renderers)](https://github.com/SamanFekri/UMLFlow/blob/main/docs/extending.md)
+* [Troubleshooting](https://github.com/SamanFekri/UMLFlow/blob/main/docs/troubleshooting.md) · [Examples](https://github.com/SamanFekri/UMLFlow/blob/main/docs/examples.md) · [Implementation plan](https://github.com/SamanFekri/UMLFlow/blob/main/docs/plan.md)
 
 ## Development
 
 ```bash
+git clone https://github.com/SamanFekri/UMLFlow.git && cd UMLFlow
 npm install
-npm test          # builds, then runs unit + integration tests (fixture repos, golden snapshots)
+npm test            # builds, then runs unit + integration tests (fixture repos, golden snapshots)
 npm run build
+npm run pack:check  # inspect exactly what a release tarball would contain
 ```
+
+Releases: bump `version` in `package.json`, then `npm publish` — `prepublishOnly` cleans, rebuilds, runs the
+full test suite and prints the tarball contents before anything is uploaded.
 
 MIT licensed.

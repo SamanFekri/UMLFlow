@@ -3,10 +3,9 @@
 UMLFlow ships a Claude Code skill (`skill/SKILL.md`) invoked as **`/umlflow`**. Install it once:
 
 ```bash
-./install.sh                     # from a checkout: CLI + ~/.claude/skills/umlflow/SKILL.md
-# or, once published:
-npm install -g umlflow && umlflow install-skill           # global (every project)
-umlflow install-skill --project                           # this project's .claude/skills only
+npx umlflow install-skill                # ~/.claude/skills/umlflow/SKILL.md — /umlflow in every project
+npx umlflow install-skill --project      # this project's .claude/skills only
+./install.sh                             # from a git checkout: build + global CLI + skill
 ```
 
 Then in any project: `/umlflow`, `/umlflow sequence "checkout"`, `/umlflow erd`, `/umlflow questions`,

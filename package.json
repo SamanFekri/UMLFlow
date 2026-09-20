@@ -1,35 +1,68 @@
 {
   "name": "umlflow",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Language-agnostic code understanding and incremental UML (Mermaid) synchronization for Claude Code and the CLI",
-  "type": "module",
+  "keywords": [
+    "uml",
+    "mermaid",
+    "architecture",
+    "diagrams",
+    "sequence-diagram",
+    "erd",
+    "use-case",
+    "claude-code",
+    "claude-code-skill",
+    "tree-sitter",
+    "incremental",
+    "cli"
+  ],
+  "homepage": "https://github.com/SamanFekri/UMLFlow#readme",
+  "bugs": {
+    "url": "https://github.com/SamanFekri/UMLFlow/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SamanFekri/UMLFlow.git"
+  },
   "license": "MIT",
+  "author": "Saman Fekri",
+  "type": "module",
   "bin": {
-    "umlflow": "./bin/umlflow.js"
+    "umlflow": "bin/umlflow.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./skill/SKILL.md": "./skill/SKILL.md",
+    "./package.json": "./package.json"
+  },
   "files": [
-    "bin",
-    "dist",
-    "skill",
-    "docs",
-    "README.md",
-    "LICENSE",
-    "examples"
+    "bin/",
+    "dist/",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo",
+    "skill/SKILL.md"
   ],
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "clean": "rm -rf dist",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "prepublishOnly": "npm run clean && npm run build",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm run clean && npm test && npm run pack:check"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.7.2",
@@ -42,17 +75,5 @@
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.2.7"
-  },
-  "keywords": [
-    "uml",
-    "mermaid",
-    "architecture",
-    "diagrams",
-    "sequence-diagram",
-    "erd",
-    "use-case",
-    "claude-code",
-    "tree-sitter",
-    "incremental"
-  ]
+  }
 }
