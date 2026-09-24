@@ -29,7 +29,7 @@ Exit codes: `0` success · `1` stale diagrams (`check`) or diagram errors · `2`
 
 ```
 -t, --type <usecase|sequence|erd>   diagram type
--n, --name <name>                   output name (.umlflow/diagrams/<name>.md)
+-n, --name <name>                   output name (.umlflow/diagrams/<name>.md + umlflow/<type>/<name>.mmd)
 -a, --about <query>                 infer scope from a topic ("login", "checkout", "orders database")
 -d, --description <text>
 --include <globs…> --exclude <globs…>

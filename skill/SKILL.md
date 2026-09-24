@@ -125,8 +125,10 @@ Architecture changes: + AuthService now depends on OAuthClient …
 - Labels ending in `?` are inferred, `??` unknown. Keep "from code" and "inferred" apart when you summarise.
   Unsupported languages are indexed but yield no structure — say so instead of describing architecture you
   have not seen.
-- Output lives in `.umlflow/diagrams/<name>.md` (Markdown + Mermaid). Point the user at the file; do not paste
-  the whole diagram unless asked or when using `--no-write`.
+- Output lives in `.umlflow/diagrams/<name>.md` (Markdown + Mermaid), mirrored as bare Mermaid in
+  `umlflow/<type>/<name>.mmd` (`type` = usecase|sequence|erd). The mirror is derived and overwritten on every
+  update — never edit it, and never write a diagram there yourself; change the canonical file or `overrides`.
+  Point the user at the file; do not paste the whole diagram unless asked or when using `--no-write`.
 
 ## Command reference
 

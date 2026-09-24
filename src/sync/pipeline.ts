@@ -14,10 +14,10 @@ import { inferScope, resolveScope, type ScopeInferenceResult } from '../diagrams
 import type { GeneratorRegistry } from '../diagrams/generator.js';
 import type { RendererRegistry } from '../render/renderer.js';
 import { fingerprint } from '../core/hash.js';
-import { matchesAny, readTextOrNull, removeFile, writeText } from '../core/fs.js';
+import { exists, matchesAny, readTextOrNull, removeFile, writeText } from '../core/fs.js';
 import { UmlflowError } from '../core/errors.js';
 import { UNKNOWN_ACTOR_ID } from '../diagrams/ir.js';
-import { composeGeneratedBlock, extractGeneratedBlock, extractManualDiagramLines, generatedFingerprint, mergeOutput, outputFileName } from './output.js';
+import { composeGeneratedBlock, composeMermaidMirror, extractGeneratedBlock, extractManualDiagramLines, generatedFingerprint, mergeOutput, mermaidMirrorFileName, outputFileName } from './output.js';
 import { diffModels, type ModelDiff } from './diff.js';
 
 export interface IndexRefreshResult {
@@ -67,6 +67,8 @@ export interface GeneratedDiagram {
   block: string;
   fullText: string;
   file: string;
+  /** Plain-Mermaid mirror: absolute path + text, or null when output.mermaidDir is disabled. */
+  mirror: { file: string; text: string } | null;
   state: DiagramState;
   notes: { level: string; text: string }[];
   changed: boolean;
@@ -213,6 +215,17 @@ export class Umlflow {
     return path.join(this.root, this.config.output.dir, outputFileName(name, this.config.output.format, renderer));
   }
 
+  /**
+   * Absolute path of the diagram's plain-Mermaid mirror (`<mermaidDir>/<type>/<name>.mmd`),
+   * or null when `output.mermaidDir` is disabled.
+   */
+  mermaidMirrorFile(name: string, definition: DiagramDefinition): string | null {
+    const dir = this.config.output.mermaidDir;
+    if (!dir) return null;
+    const renderer = this.renderers.get(definition.renderer ?? this.config.renderer);
+    return path.join(this.root, ...mermaidMirrorFileName(dir, definition.type, name, renderer).split('/'));
+  }
+
   /** Generate one diagram in memory (no writes). */
   async generateDiagram(name: string, definition: DiagramDefinition, model?: SystemModel): Promise<GeneratedDiagram> {
     const m = model ?? (await this.getModel());
@@ -242,11 +255,20 @@ export class Umlflow {
       generatedAt: new Date().toISOString(),
     };
     const changed = existingBlock === null || generatedFingerprint(existingBlock, renderer) !== state.outputHash;
-    return { name, definition, block, fullText, file, state, notes: result.diagram.notes, changed, existed: existing !== null };
+    const mirrorFile = this.mermaidMirrorFile(name, definition);
+    const mirror = mirrorFile
+      ? {
+          file: mirrorFile,
+          text: composeMermaidMirror({ diagram: result.diagram, rendered, renderer, sourceFile: path.relative(this.root, file).split(path.sep).join('/') }),
+        }
+      : null;
+    return { name, definition, block, fullText, file, mirror, state, notes: result.diagram.notes, changed, existed: existing !== null };
   }
 
   async writeDiagram(generated: GeneratedDiagram): Promise<void> {
     await writeText(generated.file, generated.fullText);
+    // The mirror is fully derived, so it is rewritten whenever the canonical file is.
+    if (generated.mirror) await writeText(generated.mirror.file, generated.mirror.text);
     await this.saveDiagramState(generated.name, generated.state);
   }
 
@@ -343,6 +365,8 @@ export class Umlflow {
         } else {
           // Record state even when output is identical so future change detection stays precise.
           await this.saveDiagramState(name, generated.state);
+          // The mirror is derived and unversioned in state: restore it if it went missing.
+          if (generated.mirror && !(await exists(generated.mirror.file))) await writeText(generated.mirror.file, generated.mirror.text);
           outcomes.push({ name, type: def.type, file, status: 'unchanged', reason, notes: generated.notes });
         }
       } catch (err) {
@@ -405,6 +429,8 @@ export class Umlflow {
     const def = this.config.diagrams[name];
     if (!def) return false;
     await removeFile(this.diagramFile(name, def));
+    const mirror = this.mermaidMirrorFile(name, def);
+    if (mirror) await removeFile(mirror);
     await this.configStore.removeDiagram(name);
     this.config = this.configStore.get();
     const states = await this.indexStore.loadDiagramState();

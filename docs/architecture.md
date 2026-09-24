@@ -38,6 +38,7 @@
                           Mermaid renderer                  src/render/mermaid (pluggable)
                                    ▼
                         .umlflow/diagrams/*.md              generated block + protected manual sections
+                        umlflow/<type>/*.mmd                plain-Mermaid mirror (derived, no markers)
 ```
 
 ## Layers

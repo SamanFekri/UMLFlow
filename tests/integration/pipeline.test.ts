@@ -201,3 +201,64 @@ describe('incremental pipeline', () => {
     expect(md2).not.toContain('POST /auth/login');
   });
 });
+
+describe('plain-Mermaid mirror (output.mermaidDir)', () => {
+  it('writes <mermaidDir>/<type>/<name>.mmd beside the canonical diagram, without markers', async () => {
+    root = await tempRepo('ts-shop', { git: true });
+    await initProject({ root, diagramTypes: ['usecase', 'sequence', 'erd'] });
+    const engine = await Umlflow.open(root);
+    await engine.update();
+
+    for (const [type, name] of [['usecase', 'system-usecases'], ['sequence', 'main-flows'], ['erd', 'database-erd']] as const) {
+      const mirror = path.join(root, 'umlflow', type, `${name}.mmd`);
+      const text = await fs.readFile(mirror, 'utf8');
+      expect(text).toMatch(/^%% /);
+      expect(text).toContain(`.umlflow/diagrams/${name}.md`);
+      // Bare diagram: no generated/manual markers, no Markdown fences.
+      expect(text).not.toContain('UMLFLOW GENERATED');
+      expect(text).not.toContain('UMLFLOW MANUAL');
+      expect(text).not.toContain('```');
+      // The canonical file keeps them.
+      expect(await fs.readFile(path.join(root, '.umlflow/diagrams', `${name}.md`), 'utf8')).toContain('UMLFLOW GENERATED BEGIN');
+    }
+  });
+
+  it('refreshes the mirror when the diagram changes, restores it when deleted, and removes it with the diagram', async () => {
+    root = await tempRepo('ts-shop', { git: true });
+    await initProject({ root, diagramTypes: ['sequence'] });
+    const engine = await Umlflow.open(root);
+    await engine.update();
+    const mirror = path.join(root, 'umlflow', 'sequence', 'main-flows.mmd');
+    expect(await fs.readFile(mirror, 'utf8')).toContain('authorize');
+
+    // A code change flows through to the mirror.
+    const gateway = path.join(root, 'src/payments/payment.gateway.ts');
+    await fs.writeFile(gateway, (await fs.readFile(gateway, 'utf8')).replace(/authorize\(/g, 'authorizeCharge('));
+    const service = path.join(root, 'src/payments/payment.service.ts');
+    await fs.writeFile(service, (await fs.readFile(service, 'utf8')).replace(/authorize\(/g, 'authorizeCharge('));
+    const engine2 = await Umlflow.open(root);
+    await engine2.update();
+    expect(await fs.readFile(mirror, 'utf8')).toContain('authorizeCharge');
+
+    // Deleted mirror is restored even though the diagram itself is unchanged.
+    await fs.rm(mirror);
+    const engine3 = await Umlflow.open(root);
+    await engine3.update({ names: ['main-flows'] });
+    expect(await fs.readFile(mirror, 'utf8')).toContain('authorizeCharge');
+
+    // Removing the diagram removes its mirror.
+    const engine4 = await Umlflow.open(root);
+    await engine4.removeDiagram('main-flows');
+    await expect(fs.readFile(mirror, 'utf8')).rejects.toThrow();
+  });
+
+  it('writes no mirror when output.mermaidDir is disabled', async () => {
+    root = await tempRepo('ts-shop', { git: true });
+    await initProject({ root, diagramTypes: ['erd'] });
+    const cfg = path.join(root, '.umlflow/config.yaml');
+    await fs.writeFile(cfg, (await fs.readFile(cfg, 'utf8')).replace(/^  mermaidDir: .*$/m, '  mermaidDir: null'));
+    const engine = await Umlflow.open(root);
+    await engine.update();
+    await expect(fs.stat(path.join(root, 'umlflow'))).rejects.toThrow();
+  });
+});

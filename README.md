@@ -17,7 +17,7 @@ LLM only when a question genuinely needs semantic interpretation.
 ```
 SOURCE CODE ─► change detection (git + hashes) ─► affected scope ─► parsers (tree-sitter)
            ─► System Model (components, calls, entities, flows, provenance)
-           ─► Use Case / Sequence / ERD ─► Mermaid ─► .umlflow/diagrams/*.md
+           ─► Use Case / Sequence / ERD ─► Mermaid ─► .umlflow/diagrams/*.md + umlflow/<type>/*.mmd
 ```
 
 ## Quick start
@@ -64,7 +64,8 @@ Open Claude Code in any project and type:
 The skill makes Claude read UMLFlow's cached state first (`umlflow context`), delegate analysis to the CLI,
 interpret only the open semantic questions with targeted context, respect your overrides, and report
 inferred vs. deterministic facts honestly. Diagrams land in `.umlflow/diagrams/<name>.md` (Markdown +
-Mermaid, so GitHub renders them). The skill installs the CLI on demand the first time it runs.
+Mermaid, so GitHub renders them), and a bare-Mermaid copy of each is mirrored to `umlflow/<type>/<name>.mmd`
+for tools that want the diagram without the Markdown. The skill installs the CLI on demand the first time it runs.
 
 ### 3. Or use it straight from the terminal
 

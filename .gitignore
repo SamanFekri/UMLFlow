@@ -3,3 +3,13 @@ dist/
 *.tsbuildinfo
 *.tgz
 .umlflow/cache/
+
+# graphify — generated knowledge graph.
+# Track the two portable artifacts (the audit report and the graph agents query);
+# ignore the rest: machine-local interpreter/root paths, the extraction cache,
+# the token tracker, temp chunks, and the heavy regenerated exports (html/svg/
+# graphml/cypher/obsidian/wiki). Note `graphify-out/*`, not `graphify-out/` —
+# git will not descend into an ignored directory, so the negations below need it.
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/graph.json

@@ -22,6 +22,7 @@ analysis:
 output:
   dir: .umlflow/diagrams
   format: md                  # md = Markdown with a ```mermaid block; mmd = bare Mermaid file
+  mermaidDir: umlflow         # extra plain-Mermaid mirror, grouped by type; null disables it
 
 renderer: mermaid
 
@@ -95,3 +96,26 @@ overwritten by inference. `semantic-inference` entries were established once (ty
 `umlflow semantic questions`) and are reused instead of being rediscovered. Precedence when facts disagree:
 **user > code > semantic-inference > unknown** — an inferred role can never override a `@Controller` decorator,
 but a user declaration can.
+
+## `output.mermaidDir` — the plain-Mermaid mirror
+
+Alongside the canonical diagram under `output.dir`, UMLFlow writes a bare Mermaid copy of every diagram,
+grouped by diagram type:
+
+```
+umlflow/
+├── usecase/system-usecases.mmd
+├── sequence/main-flows.mmd
+└── erd/database-erd.mmd
+```
+
+These files hold nothing but a short provenance comment and the diagram itself — no Markdown, no generated
+or manual markers — so they can be fed straight to `mmdc`, embedded in another site, or read by a tool that
+expects raw Mermaid.
+
+The mirror is **derived output**: it is rewritten whenever the diagram it mirrors is written, restored if you
+delete it, and removed when you run `umlflow remove <name>`. Edit the file under `output.dir` (or the
+`overrides` in this config) — never the mirror, whose changes are overwritten on the next update.
+
+Set `mermaidDir: null` to turn the mirror off. The path must be relative and inside the repository; a diagram
+whose `type` changes leaves its old mirror behind, so delete that file yourself after a type change.

@@ -6,6 +6,7 @@
  * and when adding a new diagram definition through `generate`.
  */
 
+import path from 'node:path';
 import { UmlflowError } from '../core/errors.js';
 
 export const CONFIG_VERSION = 1;
@@ -33,6 +34,12 @@ export interface OutputConfig {
   /** Directory for generated diagrams, repo-relative. */
   dir: string;
   format: OutputFormat;
+  /**
+   * Extra plain-Mermaid mirror of every diagram, repo-relative, laid out as
+   * `<dir>/<type>/<name>.mmd` (e.g. `umlflow/sequence/checkout-flow.mmd`).
+   * Derived output for tools that want the bare diagram — set to null to disable.
+   */
+  mermaidDir: string | null;
 }
 
 export interface GitConfig {
@@ -129,6 +136,7 @@ export const DEFAULT_CONFIG: UmlflowConfig = {
   output: {
     dir: '.umlflow/diagrams',
     format: 'md',
+    mermaidDir: 'umlflow',
   },
   renderer: 'mermaid',
   git: {
@@ -178,6 +186,15 @@ export function normalizeConfig(raw: unknown): UmlflowConfig {
   const format = outputRaw.format ?? DEFAULT_CONFIG.output.format;
   if (format !== 'md' && format !== 'mmd') throw new UmlflowError('Config: output.format must be "md" or "mmd"');
 
+  const mermaidDirRaw = outputRaw.mermaidDir;
+  if (mermaidDirRaw !== undefined && mermaidDirRaw !== null && typeof mermaidDirRaw !== 'string') {
+    throw new UmlflowError('Config: output.mermaidDir must be a directory path or null');
+  }
+  if (typeof mermaidDirRaw === 'string' && (path.isAbsolute(mermaidDirRaw) || mermaidDirRaw.split(/[\\/]/).includes('..'))) {
+    throw new UmlflowError('Config: output.mermaidDir must be a relative path inside the repository');
+  }
+  const mermaidDir = mermaidDirRaw === undefined ? DEFAULT_CONFIG.output.mermaidDir : mermaidDirRaw === '' ? null : mermaidDirRaw;
+
   const diagrams: Record<string, DiagramDefinition> = {};
   for (const [name, defRaw] of Object.entries(diagramsRaw)) {
     if (!/^[a-z0-9][a-z0-9-_]*$/i.test(name)) {
@@ -198,6 +215,7 @@ export function normalizeConfig(raw: unknown): UmlflowConfig {
     output: {
       dir: typeof outputRaw.dir === 'string' ? outputRaw.dir : DEFAULT_CONFIG.output.dir,
       format,
+      mermaidDir,
     },
     renderer: typeof raw.renderer === 'string' ? raw.renderer : DEFAULT_CONFIG.renderer,
     git: { hooks },
