@@ -15,7 +15,7 @@ export type HookMode = 'update' | 'check' | 'off';
 export type OutputFormat = 'md' | 'mmd';
 
 /** Built-in diagram types. Additional types can be registered by generators. */
-export type DiagramType = 'usecase' | 'sequence' | 'erd' | (string & {});
+export type DiagramType = 'usecase' | 'sequence' | 'erd' | 'component' | (string & {});
 
 export interface AnalysisConfig {
   /** Glob patterns (repo-relative). Empty means the whole repository. */
@@ -28,6 +28,12 @@ export interface AnalysisConfig {
   maxFileSize: number;
   /** Default maximum call depth when walking flows for sequence diagrams. */
   maxCallDepth: number;
+  /**
+   * Also exclude everything the repository's .gitignore excludes (build output,
+   * generated clients, vendored code). `include` and `exclude` still win, so a
+   * deliberately analysed generated file can be added back with `include`.
+   */
+  respectGitignore: boolean;
 }
 
 export interface OutputConfig {
@@ -138,6 +144,7 @@ export const DEFAULT_CONFIG: UmlflowConfig = {
     languages: [],
     maxFileSize: 1_000_000,
     maxCallDepth: 6,
+    respectGitignore: true,
   },
   output: {
     dir: '.umlflow/diagrams',
@@ -154,7 +161,7 @@ export const DEFAULT_CONFIG: UmlflowConfig = {
   diagrams: {},
 };
 
-export const KNOWN_DIAGRAM_TYPES: DiagramType[] = ['usecase', 'sequence', 'erd'];
+export const KNOWN_DIAGRAM_TYPES: DiagramType[] = ['usecase', 'sequence', 'erd', 'component'];
 export const HOOK_MODES: HookMode[] = ['update', 'check', 'off'];
 export const SUPPORTED_HOOKS = ['pre-commit', 'pre-push', 'post-merge', 'post-checkout'];
 
@@ -222,6 +229,7 @@ export function normalizeConfig(raw: unknown): UmlflowConfig {
       languages: strArray(analysisRaw.languages, 'analysis.languages'),
       maxFileSize: typeof analysisRaw.maxFileSize === 'number' ? analysisRaw.maxFileSize : DEFAULT_CONFIG.analysis.maxFileSize,
       maxCallDepth: typeof analysisRaw.maxCallDepth === 'number' ? analysisRaw.maxCallDepth : DEFAULT_CONFIG.analysis.maxCallDepth,
+      respectGitignore: typeof analysisRaw.respectGitignore === 'boolean' ? analysisRaw.respectGitignore : DEFAULT_CONFIG.analysis.respectGitignore,
     },
     output: {
       dir: typeof outputRaw.dir === 'string' ? outputRaw.dir : DEFAULT_CONFIG.output.dir,

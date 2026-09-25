@@ -1,4 +1,4 @@
-import type { Diagram, ErDiagram, SequenceDiagram, SequenceElement, UseCaseDiagram } from '../../diagrams/ir.js';
+import type { ComponentDiagram, Diagram, ErDiagram, SequenceDiagram, SequenceElement, UseCaseDiagram } from '../../diagrams/ir.js';
 import { mermaidId } from '../../core/text.js';
 import type { Renderer } from '../renderer.js';
 
@@ -13,7 +13,7 @@ export class MermaidRenderer implements Renderer {
   readonly commentPrefix = '%%';
 
   supports(type: string): boolean {
-    return type === 'usecase' || type === 'sequence' || type === 'erd';
+    return type === 'usecase' || type === 'sequence' || type === 'erd' || type === 'component';
   }
 
   render(diagram: Diagram): string {
@@ -24,6 +24,8 @@ export class MermaidRenderer implements Renderer {
         return renderSequence(diagram as SequenceDiagram);
       case 'erd':
         return renderErd(diagram as ErDiagram);
+      case 'component':
+        return renderComponent(diagram as ComponentDiagram);
       default:
         throw new Error(`Mermaid renderer does not support diagram type "${diagram.type}"`);
     }
@@ -151,6 +153,43 @@ function firstParticipant(body: SequenceElement[]): string {
     if (inner) return inner;
   }
   return '';
+}
+
+/** Node shape carries the kind: [] component, [()] datastore, {{}} external. */
+function componentShape(node: ComponentDiagram['nodes'][number], label: string): string {
+  if (node.kind === 'datastore') return `[("${label}")]`;
+  if (node.kind === 'external') return `{{"${label}"}}`;
+  return `["${label}"]`;
+}
+
+function renderComponent(d: ComponentDiagram): string {
+  const lines: string[] = ['flowchart TB'];
+  const grouped = new Set(Object.values(d.groups).flat());
+  const byId = new Map(d.nodes.map((n) => [n.id, n]));
+  const declare = (id: string, indent: string): void => {
+    const node = byId.get(id);
+    if (!node) return;
+    const label = `${esc(node.label)}${confidenceMark(node.confidence, d.uncertaintyMarkers)}`;
+    lines.push(`${indent}${mermaidId(node.id)}${componentShape(node, label)}`);
+  };
+  for (const [group, members] of Object.entries(d.groups)) {
+    lines.push(`  subgraph ${mermaidId('layer_' + group)} ["${esc(group)}"]`);
+    lines.push('    direction TB');
+    for (const id of members) declare(id, '    ');
+    lines.push('  end');
+  }
+  for (const node of d.nodes) {
+    if (grouped.has(node.id)) continue;
+    declare(node.id, '  ');
+  }
+  for (const e of d.edges) {
+    // Inferred relationships are dotted; direct evidence is solid.
+    const arrow = e.confidence === 'deterministic' || e.confidence === 'declared' ? '-->' : '-.->';
+    const label = e.label ?? e.kind;
+    lines.push(`  ${mermaidId(e.from)} ${arrow}|${esc(label)}| ${mermaidId(e.to)}`);
+  }
+  lines.push(...tail(d));
+  return lines.join('\n') + '\n';
 }
 
 const CARDINALITY: Record<string, string> = {

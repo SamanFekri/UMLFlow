@@ -76,7 +76,8 @@ describe('incremental pipeline', () => {
     expect(result.index.changes.modified).toEqual(['src/payments/payment.service.ts']);
     expect(result.index.parsed).toBe(2);
     expect(statuses(result)).toEqual({ 'system-usecases': 'skipped', 'main-flows': 'updated', 'database-erd': 'skipped' });
-    expect(await read(root, '.umlflow/diagrams/main-flows.md')).toContain('payment_service->>fraud_service: screen');
+    // Awaited calls render as async arrows ("-)"), not plain ones.
+    expect(await read(root, '.umlflow/diagrams/main-flows.md')).toContain('payment_service-)fraud_service: screen');
     expect(await read(root, '.umlflow/diagrams/database-erd.md')).toBe(erdBefore);
     expect(result.modelDiff?.added).toContain('PaymentService now depends on FraudService');
     expect(result.modelDiff?.added).toContain('call PaymentService.charge → FraudService.screen added');

@@ -1,8 +1,8 @@
 import path from 'node:path';
-import type { CallSite, CodeFile, CodeSymbol, EntityDecl, Field, RelationKind } from '../codemodel/types.js';
+import type { CallSite, CodeFile, CodeSymbol, EntityDecl, Field, RelationKind, RouteRegistration } from '../codemodel/types.js';
 import { codeFact, inferredFact, strongerOf, unknownFact, type Provenance, type SourceRef } from '../core/provenance.js';
 import { humanize, slugify, sortBy } from '../core/text.js';
-import { componentRoleFromSymbol, entryPointFromAnnotations, isNonDescriptiveName, routePrefixFromAnnotations } from './classify.js';
+import { componentRoleFromSymbol, entryPointFromAnnotations, isNonDescriptiveName, routePrefixFromAnnotations, joinPath } from './classify.js';
 import { extractEntity } from './entities/extract.js';
 import { provenanceFor, type SemanticsData } from './semantics.js';
 import { buildFlows } from './flows.js';
@@ -76,6 +76,12 @@ class ModelBuilder {
   private readonly globalByName = new Map<string, string[]>();
   private readonly operations: Operation[] = [];
   private readonly opById = new Map<string, Operation>();
+  /** file path → module-scope variable bindings (name → type held). */
+  private readonly bindingsByFile = new Map<string, Map<string, string>>();
+  /** file path → mounted router name → prefix. */
+  private readonly mountsByFile = new Map<string, Map<string, string>>();
+  /** Mounted router name → prefix, across every analysed file. */
+  private allMounts: Map<string, string> | null = null;
   private readonly interactions: Interaction[] = [];
   private readonly dependencies = new Map<string, Dependency>();
   private readonly dataAccess = new Map<string, DataAccess>();
@@ -317,16 +323,56 @@ class ModelBuilder {
     }
   }
 
+  /**
+   * Prefix under which a router/route-group function is mounted.
+   * `app.use('/api', routes)` means every route registered inside `routes` is
+   * actually served under `/api`, so the prefix has to travel to those routes or
+   * the model records the wrong paths (and therefore the wrong use case names).
+   */
+  private mountPrefixFor(file: CodeFile, symbolName: string): string | undefined {
+    let mounts = this.mountsByFile.get(file.path);
+    if (!mounts) {
+      mounts = new Map<string, string>();
+      const all = [...(file.mounts ?? []), ...file.symbols.flatMap((s) => s.mounts ?? [])];
+      for (const m of all) {
+        // `routes.default` / `mod.routes` are mounted by their last segment.
+        const target = m.target.split('.').pop() ?? m.target;
+        mounts.set(target, m.prefix);
+      }
+      this.mountsByFile.set(file.path, mounts);
+    }
+    return mounts.get(symbolName);
+  }
+
   /** Route registrations (Express/Go style) map handlers to entry points. */
   private applyRouteRegistrations(draft: ComponentDraft): void {
     const { file } = draft;
-    const routes = [...(draft.component.kind === 'module' ? file.routes : []), ...draft.memberSymbols.flatMap((s) => s.routes ?? [])];
-    for (const route of routes) {
+    const routes: { route: RouteRegistration; prefix?: string }[] = [];
+    if (draft.component.kind === 'module') {
+      for (const r of file.routes) routes.push({ route: r });
+    }
+    for (const s of draft.memberSymbols) {
+      // A prefix may be declared in any analysed file, not only this one.
+      const prefix = this.mountPrefixFor(file, s.name) ?? this.mountPrefixAnywhere(s.name);
+      for (const r of s.routes ?? []) routes.push({ route: r, ...(prefix ? { prefix } : {}) });
+    }
+    for (const { route, prefix } of routes) {
       if (!route.handler) continue;
       const target = this.resolveHandler(route.handler, draft);
       if (!target) continue;
       if (target.entryPoint && target.entryPoint.kind !== 'public') continue;
-      target.entryPoint = { kind: 'http', method: route.method, path: route.path, provenance: codeFact([{ file: file.path, line: route.line }], 'route registration') };
+      const ref = { file: file.path, line: route.line };
+      const reason = route.reason ?? 'route registration';
+      // Only HTTP registrations are direct evidence; event/queue/cron/command
+      // registrations are recognised by call shape, so they stay inferred.
+      const provenance = route.confidence === 'inferred' ? inferredFact([ref], reason) : codeFact([ref], reason);
+      const isHttp = (route.kind ?? 'http') === 'http';
+      target.entryPoint = {
+        kind: route.kind ?? 'http',
+        ...(route.method ? { method: route.method } : {}),
+        path: isHttp && prefix ? joinPath(prefix, route.path) : route.path,
+        provenance,
+      };
       const owner = this.draftById.get(target.componentId);
       if (owner && owner.component.role !== 'controller' && owner.component.roleProvenance.confidence !== 'declared') {
         owner.component.role = 'controller';
@@ -448,6 +494,7 @@ class ModelBuilder {
           order,
           ref: { file: file.path, line: call.line },
           provenance: target.provenance,
+          ...(call.awaited ? { async: true } : {}),
         });
         if (target.componentId !== component.id) {
           const key = `${component.id}|calls|${target.componentId}`;
@@ -502,7 +549,12 @@ class ModelBuilder {
     // 2. Parameter of the operation (FastAPI Depends, Go handler params).
     const param = sym.params.find((p) => p.name === root);
     if (param) return this.resolveViaType(param.type, param.typeArgs, root, segs.slice(1), call, file, ref, `parameter ${root}`);
-    // 3. Imported / local name (static call, module import, Django `User.objects`).
+    // 3. Module-scope binding: `const service = new UserService()`. This is how
+    //    composition roots and hand-wired dependencies are expressed when there is
+    //    no DI container, so the variable carries the type of what it holds.
+    const bound = this.moduleBinding(file, root);
+    if (bound) return this.resolveViaType(bound, undefined, root, segs.slice(1), call, file, ref, `module binding ${root}`);
+    // 4. Imported / local name (static call, module import, Django `User.objects`).
     const res = this.resolveName(root, file);
     if (res) {
       const target = this.draftById.get(res.componentId);
@@ -512,18 +564,52 @@ class ModelBuilder {
         return { kind: 'component', componentId: res.componentId, operationId: op?.id, provenance: { ...res.provenance, refs: [ref] } };
       }
     }
-    // 4. Data client by conventional name (prisma.user.findMany, db.orders.insert).
+    // 5. Data client by conventional name (prisma.user.findMany, db.orders.insert).
     if (DATA_CLIENT_NAMES.test(root) && segs[1]) {
       const entity = this.findEntityNameHint(segs[1]);
       if (entity) return { kind: 'data', entityName: entity, provenance: inferredFact([ref], `data client "${root}"`) };
     }
-    // 5. External package.
+    // 6. External package.
     const ext = this.externalComponentFor(root, file);
     if (ext) {
       const label = segs.length > 1 ? `${segs.slice(1).join('.')}.${call.name}` : call.name;
       return { kind: 'component', componentId: ext.id, label, provenance: codeFact([ref], `external package ${ext.name}`) };
     }
     return null;
+  }
+
+  /**
+   * Type held by a module-scope variable, e.g. `const service = new UserService()`.
+   * Only unambiguous bindings count: a variable initialised from several
+   * constructors tells us nothing definite, so it is skipped rather than guessed.
+   */
+  private moduleBinding(file: CodeFile, name: string): string | undefined {
+    let bindings = this.bindingsByFile.get(file.path);
+    if (!bindings) {
+      bindings = new Map<string, string>();
+      for (const sym of file.symbols) {
+        if (sym.kind !== 'variable' || sym.parent) continue;
+        const refs = sym.typeRefs ?? [];
+        const type = sym.returnType ?? (refs.length === 1 ? refs[0] : undefined);
+        if (type) bindings.set(sym.name, type);
+      }
+      this.bindingsByFile.set(file.path, bindings);
+    }
+    return bindings.get(name);
+  }
+
+  /** A router is often defined in one file and mounted in another. */
+  private mountPrefixAnywhere(symbolName: string): string | undefined {
+    if (!this.allMounts) {
+      this.allMounts = new Map<string, string>();
+      for (const f of this.files) {
+        for (const m of [...(f.mounts ?? []), ...f.symbols.flatMap((s) => s.mounts ?? [])]) {
+          const target = m.target.split('.').pop() ?? m.target;
+          if (!this.allMounts.has(target)) this.allMounts.set(target, m.prefix);
+        }
+      }
+    }
+    return this.allMounts.get(symbolName);
   }
 
   private resolveViaType(
@@ -846,6 +932,26 @@ class ModelBuilder {
       });
     }
 
+    // Entry-point confirmation. Registrations matched by call shape (`bus.on(...)`,
+    // `queue.process(...)`) are a guess: `stream.on('data', cb)` has the same shape
+    // as a real subscription. Rather than assert them, ask — answering "no" sets
+    // `ignore` and the flow disappears from every diagram.
+    for (const op of model.operations) {
+      const ep = op.entryPoint;
+      if (!ep || ep.provenance.confidence !== 'inferred') continue;
+      if (ep.kind === 'public') continue;
+      this.questions.push({
+        id: `entry-point:${op.id}`,
+        kind: 'entry-point',
+        priority: 'optional',
+        subject: op.id,
+        question: `Is ${op.id} a real ${ep.kind} entry point of this system? (recognised from the shape of the registration call${ep.path ? ` for "${ep.path}"` : ''})`,
+        refs: [op.ref],
+        options: ['yes', 'no'],
+        context: [`${ep.kind}${ep.path ? `: ${ep.path}` : ''}`, ep.provenance.reason ?? 'matched a registration pattern'],
+      });
+    }
+
     // Relationship confirmation: an inferred entity relation is a guess about the
     // data model, so it is surfaced rather than drawn as if it were read from code.
     for (const rel of model.relations) {
@@ -963,9 +1069,23 @@ function singularize(word: string): string {
   return word;
 }
 
-/** Use case name: descriptive operation names are humanised; CRUD-style names borrow the route resource. */
+/**
+ * Use case name. Descriptive operation names are humanised; CRUD-style and
+ * generated handler names borrow the route resource; topic-driven entry points
+ * (events, queues, commands, jobs) are named after the topic they listen to.
+ */
 function useCaseNameFor(op: Operation): string {
   const ep = op.entryPoint;
+  if (ep && ep.kind !== 'http' && ep.path && isNonDescriptiveName(op.name)) {
+    // "user.created" → "User Created". A cron expression has no words in it, so
+    // it is left in the entry point (where the diagram shows it) rather than
+    // being mangled into a name like "0 2".
+    if (/[A-Za-z]/.test(ep.path)) {
+      const words = ep.path.split(/[^A-Za-z0-9]+/).filter(Boolean);
+      if (words.length) return humanize(words.join(' '));
+    }
+    if (ep.kind === 'scheduled') return 'Scheduled job';
+  }
   if (ep?.kind === 'http' && ep.path) {
     const crud = CRUD_VERBS[op.name.toLowerCase()] ?? (isNonDescriptiveName(op.name) ? HTTP_VERB_NAMES[ep.method ?? ''] : undefined);
     if (crud) {
@@ -978,7 +1098,7 @@ function useCaseNameFor(op: Operation): string {
       }
     }
   }
-  return humanize(op.name);
+  return humanize(op.name.replace(/_\d+$/, ''));
 }
 
 export type { ComponentRole };

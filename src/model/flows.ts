@@ -45,6 +45,7 @@ export function buildFlows(model: SystemModel, semantics: SemanticsData, maxDept
           interactionId: inter.id,
           ref: inter.ref,
           provenance: inter.provenance,
+          ...(inter.async ? { async: true } : {}),
         });
         if (!components.includes(inter.toComponent)) components.push(inter.toComponent);
         for (const e of accessByComponent.get(inter.toComponent) ?? []) entities.add(e);

@@ -80,12 +80,38 @@ app.post('/orders', (req, res) => { orders.create(req.body); });
 export function setup(router) { router.delete('/orders/:id', removeOrder); }`;
     const adapter = registry.adapterFor('server.js')!;
     const file = await adapter.parse({ path: 'server.js', text, hash: 'x', fileExists: () => false });
-    expect(file.routes.map((r) => `${r.method} ${r.path} ${r.handler ?? '-'}`)).toEqual(['GET /orders listOrders', 'POST /orders -']);
+    // The inline handler is lifted into its own symbol so it owns its calls.
+    expect(file.routes.map((r) => `${r.method} ${r.path} ${r.handler ?? '-'}`)).toEqual(['GET /orders listOrders', 'POST /orders route_1']);
     const setup = file.symbols.find((s) => s.id === 'setup')!;
-    expect(setup.routes).toEqual([{ method: 'DELETE', path: '/orders/:id', handler: 'removeOrder', line: 6 }]);
+    expect(setup.routes).toMatchObject([{ method: 'DELETE', path: '/orders/:id', handler: 'removeOrder', line: 6 }]);
     const handler = file.symbols.find((s) => s.id === 'listOrders')!;
     expect(handler.kind).toBe('function');
     expect(handler.calls.map((c) => c.name)).toEqual(['json', 'list']);
+
+    const inline = file.symbols.find((s) => s.id === 'route_1')!;
+    expect(inline.flags?.inlineHandler).toBe(true);
+    expect(inline.calls.map((c) => c.name)).toEqual(['create']);
+  });
+
+  it('recognises non-HTTP registrations by call shape and marks them inferred', async () => {
+    const text = `bus.on('user.created', async (user) => { await mailer.send(user); });
+queue.process('resize', (job) => { images.resize(job.data); });
+bot.command('start', (ctx) => { greeter.welcome(ctx); });
+scheduler.schedule('0 * * * *', () => { reports.build(); });
+stream.on('data', (chunk) => { sink.write(chunk); });`;
+    const adapter = registry.adapterFor('wiring.ts')!;
+    const file = await adapter.parse({ path: 'wiring.ts', text, hash: 'x', fileExists: () => false });
+    const byKind = file.routes.map((r) => `${r.kind}:${r.path}`);
+    expect(byKind).toContain('event:user.created');
+    expect(byKind).toContain('message:resize');
+    expect(byKind).toContain('cli:start');
+    expect(byKind).toContain('scheduled:0 * * * *');
+    // Shape-based matches are never presented as direct evidence.
+    for (const r of file.routes) expect(r.confidence).toBe('inferred');
+    // Each handler body is attributed to its own registration, not to the module.
+    const handlers = file.symbols.filter((s) => s.flags?.inlineHandler);
+    expect(handlers.length).toBeGreaterThanOrEqual(4);
+    expect(handlers.flatMap((h) => h.calls.map((c) => c.name))).toContain('send');
   });
 });
 

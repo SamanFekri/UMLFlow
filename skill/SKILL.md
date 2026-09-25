@@ -135,6 +135,9 @@ Architecture changes: + AuthService now depends on OAuthClient …
 - **Names are never marked.** A name must never end in `?` or `??` — `UserService?` is not a name.
   Uncertainty belongs in the analysis notes, which UMLFlow writes for you. Run `umlflow validate` after
   generating; it exits 1 if a name or participant is wrong.
+- **Confirm inferred entry points.** Event, queue, cron and command handlers are recognised by call shape,
+  which is ambiguous. `umlflow semantic questions --kind entry-point` lists them; answer `no` for anything
+  that is not really a system entry point instead of leaving a fabricated flow in the diagrams.
 - **Report coverage honestly.** `umlflow coverage` lists files that produced no structure and use cases
   with no diagram. Say what was not understood instead of describing architecture you have not seen.
 - Never edit the generated block of a diagram file. Customise via `diagrams.<name>.overrides` in

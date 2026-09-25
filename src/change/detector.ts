@@ -2,6 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { sha256, shortHash } from '../core/hash.js';
 import { DEFAULT_IGNORE_DIRS, matchesAny, walkFiles } from '../core/fs.js';
+import { loadGitignore, type GitignoreRules } from '../core/gitignore.js';
 import type { AnalysisConfig } from '../config/schema.js';
 import { Git, type GitFileChange } from './git.js';
 
@@ -34,11 +35,17 @@ export function changedPaths(c: ChangeSet): string[] {
  * Decides which files belong to the analysis universe. Respects config includes/excludes
  * and built-in ignores. Language support is decided later by the parser registry.
  */
-export function makeFileFilter(analysis: AnalysisConfig, extraExcludes: string[] = []): (rel: string) => boolean {
+export function makeFileFilter(analysis: AnalysisConfig, extraExcludes: string[] = [], gitignore?: GitignoreRules): (rel: string) => boolean {
   const excludes = [...analysis.exclude, ...extraExcludes, '.umlflow/**'];
+  const ignored = gitignore?.patterns ?? [];
+  const reincluded = gitignore?.negated ?? [];
   return (rel: string) => {
-    if (analysis.include.length > 0 && !matchesAny(rel, analysis.include)) return false;
+    // An explicit `include` is a deliberate choice and overrides .gitignore, so a
+    // generated file the user wants analysed can always be added back.
+    const explicit = analysis.include.length > 0 && matchesAny(rel, analysis.include);
+    if (analysis.include.length > 0 && !explicit) return false;
     if (matchesAny(rel, excludes)) return false;
+    if (!explicit && ignored.length && matchesAny(rel, ignored) && !matchesAny(rel, reincluded)) return false;
     return true;
   };
 }
@@ -70,7 +77,8 @@ export interface DetectOptions {
  */
 export async function detectChanges(options: DetectOptions): Promise<ChangeSet> {
   const { root, analysis, previous, isSupported } = options;
-  const filter = makeFileFilter(analysis);
+  const gitignore = analysis.respectGitignore ? await loadGitignore(root) : undefined;
+  const filter = makeFileFilter(analysis, [], gitignore);
   const all = await walkFiles(root, {
     ignoreDirs: DEFAULT_IGNORE_DIRS,
     ignorePatterns: [],

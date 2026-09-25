@@ -39,3 +39,48 @@ but not defined.
 * Branches/loops are not rendered as `alt`/`loop` fragments yet (the IR supports them).
 * Multi-file Go packages: methods on structs defined in another file of the same package are attached; other
   cross-file resolution relies on unique names.
+
+
+## Entry-point detection
+
+An entry point is where the outside world reaches the system. UMLFlow finds them two ways.
+
+**Annotations / decorators** — `@Get('/x')`, `@GetMapping`, `@EventPattern`, `@Cron`, `@command`. Direct
+evidence, recorded as deterministic.
+
+**Registration calls** — most systems register handlers instead of annotating them, and they all share one
+shape: `<receiver>.<verb>(<name>, <handler>)`.
+
+| Concept | Verbs | Kind | Evidence |
+|---|---|---|---|
+| HTTP route registration | `get` `post` `put` `delete` `patch` `options` `head` `all` | `http` | deterministic |
+| Event subscription | `on` `once` `addListener` `addEventListener` `subscribe` `listen` `handle` | `event` | inferred |
+| Message consumer | `process` `consume` `worker` `work` `receive` | `message` | inferred |
+| Scheduled job | `schedule` `cron` `every` `repeat` | `scheduled` | inferred |
+| Command | `command` `hears` `action` `cmd` | `cli` | inferred |
+
+These live in [`src/parsers/entrypatterns.ts`](../src/parsers/entrypatterns.ts) as **data**. Supporting a new
+framework means adding a verb, not a branch in the parser — nothing anywhere keys off a framework's name.
+
+Only HTTP verbs are treated as direct evidence. The other shapes are genuinely ambiguous — `stream.on('data', cb)`
+looks exactly like an event subscription — so they are recorded as *inferred* and raised as an
+`entry-point` semantic question. Answering `no` sets `ignore` and the flow disappears from every diagram:
+
+```bash
+umlflow semantic questions --kind entry-point
+umlflow semantic answer --set 'entry-point:wiring.job_4=no'
+```
+
+### Inline handlers
+
+`app.post('/orders', async (req, reply) => { … })` is the dominant style, and the handler body is where the
+flow actually lives. UMLFlow lifts each inline handler into its own operation so its calls belong to it
+rather than to the enclosing setup function. Without that, every route in a file collapses into one
+"registers everything" function and no per-route flow can be reconstructed.
+
+### Dependencies wired by hand
+
+Besides constructor injection and typed fields, UMLFlow resolves **module-scope bindings** —
+`const orders = new OrderService()` at the top of a file. This is how composition roots and hand-wired
+dependencies are expressed when there is no DI container. Only unambiguous bindings count: a variable
+initialised from several constructors is left unresolved rather than guessed.

@@ -63,13 +63,25 @@ export interface CallSite {
   chained?: boolean;
 }
 
-/** A framework-style route registration observed in code, e.g. `router.post('/orders', handler)`. */
+/**
+ * A handler registration observed in code, e.g. `router.post('/orders', handler)`,
+ * `bus.on('user.created', handler)` or `queue.process('resize', handler)`.
+ * The shape is the same across frameworks; `kind` says which sort it is.
+ */
 export interface RouteRegistration {
-  method: string;
+  /** HTTP verb for http registrations; absent for events, jobs and commands. */
+  method?: string;
+  /** Route path, event topic, queue name, cron expression or command name. */
   path: string;
   /** Handler symbol name if literally referenced, e.g. "createOrder" or "OrderController.create". */
   handler?: string;
   line: number;
+  /** What sort of entry point this registers. Defaults to 'http' when absent. */
+  kind?: 'http' | 'event' | 'message' | 'scheduled' | 'cli';
+  /** Why the registration was recognised, for provenance. */
+  reason?: string;
+  /** Registrations matched only by shape are inferred, not deterministic. */
+  confidence?: 'deterministic' | 'inferred';
 }
 
 export interface CodeSymbol {
@@ -94,6 +106,8 @@ export interface CodeSymbol {
   calls: CallSite[];
   /** Routes registered inside this symbol (e.g. Express router setup functions). */
   routes?: RouteRegistration[];
+  /** Sub-routers mounted under a prefix inside this symbol. */
+  mounts?: MountRegistration[];
   /** Type names referenced in the body (instantiations, static access), used for dependency edges. */
   typeRefs?: string[];
   /** Language-specific flags, e.g. { static: true, async: true, visibility: "public" }. */
@@ -144,6 +158,18 @@ export interface RelationDecl {
   via?: string;
 }
 
+/**
+ * A sub-router or route group mounted under a path prefix, e.g.
+ * `app.use('/api', routes)` or `fastify.register(routes, { prefix: '/api' })`.
+ * Routes registered inside `target` are served under `prefix`.
+ */
+export interface MountRegistration {
+  prefix: string;
+  /** Name of the mounted router/function. */
+  target: string;
+  line: number;
+}
+
 export type ParseStatus = 'ok' | 'partial' | 'failed' | 'unsupported';
 
 export interface CodeFile {
@@ -157,6 +183,8 @@ export interface CodeFile {
   imports: CodeImport[];
   /** Module-level routes (e.g. Express `app.get(...)` at top level). */
   routes: RouteRegistration[];
+  /** Module-level mounts (e.g. `app.use('/api', routes)`). */
+  mounts?: MountRegistration[];
   entities: EntityDecl[];
   /** Module/package name if the language declares one (Java package, Go package). */
   module?: string;

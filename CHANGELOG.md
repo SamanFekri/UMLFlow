@@ -2,6 +2,42 @@
 
 All notable changes to UMLFlow. This project follows [Semantic Versioning](https://semver.org).
 
+## 1.3.0
+
+Understands how real applications register their entry points, and adds an architecture view.
+
+### Added
+
+* **Component / architecture diagrams** (`--type component`) built from the same System Model as every other
+  view, so they cannot contradict the sequence diagrams. Layers are emergent — only roles the codebase
+  actually has become bands — and one edge is drawn per component pair.
+* **`analysis.respectGitignore`** (default `true`): build output, generated clients and vendored code are
+  excluded using the repository's own `.gitignore`. An explicit `include` overrides it.
+* **Route mount / prefix resolution.** `app.use('/api/v1', routes)` and `register(routes, { prefix })` now
+  compose onto the routes registered inside the mounted router, across files. Previously those routes were
+  recorded at their local path, which also produced the wrong use case names.
+* **Asynchronous interactions.** Awaited calls were captured by the parsers but dropped before reaching a
+  diagram; they now render as Mermaid async arrows (`-)`) with a note, while unawaited calls stay solid.
+
+* **Framework-independent entry-point patterns.** Entry points are now recognised from the *shape* of a
+  registration call — `<receiver>.<verb>(<name>, <handler>)` — covering HTTP routes, event subscriptions,
+  queue consumers, scheduled jobs and commands. The patterns are data in
+  `src/parsers/entrypatterns.ts`; supporting a new framework is a new verb, not a new branch. Previously
+  only annotations and HTTP verbs were detected, so event-driven, worker and bot applications produced no
+  entry points, no use cases and empty diagrams.
+* **Inline handler scoping.** `app.post('/orders', async (req, reply) => { … })` now yields an operation of
+  its own. Previously every handler's calls were attributed to the enclosing setup function, so no
+  per-route flow could be reconstructed — the single biggest cause of empty sequence diagrams.
+* **Module-scope dependency resolution.** `const orders = new OrderService()` is resolved, so hand-wired
+  composition roots (no DI container) produce complete flows. Ambiguous bindings are left unresolved.
+* **`entry-point` semantic questions.** Shape-matched registrations are recorded as *inferred* and raised as
+  a question rather than asserted; answering `no` sets `ignore` and removes the flow from every diagram.
+
+### Fixed
+
+* Use cases from generated handlers are named from their route or topic (`Create Order`, `Order Placed`)
+  instead of the synthetic symbol (`Route 2`). A cron expression is no longer mangled into a name.
+
 ## 1.2.0
 
 Diagram names are now clean, and every use case gets its own sequence diagram.

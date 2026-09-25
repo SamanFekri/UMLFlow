@@ -60,7 +60,7 @@ describe('CLI', () => {
     const upd = update.json() as { diagrams: { name: string; status: string }[]; index: { parsed: number } };
     expect(upd.index.parsed).toBe(0); // parse cache already up to date from `diff`; nothing re-read
     expect(Object.fromEntries(upd.diagrams.map((d) => [d.name, d.status]))).toEqual({ 'system-usecases': 'skipped', 'database-erd': 'skipped', 'login-flow': 'updated' });
-    expect(await read(root, '.umlflow/diagrams/login-flow.md')).toContain('session_manager->>audit_service: record');
+    expect(await read(root, '.umlflow/diagrams/login-flow.md')).toContain('session_manager-)audit_service: record');
 
     const status = run(root, 'status');
     expect(status.code).toBe(0);

@@ -157,6 +157,9 @@ export function joinPath(prefix: string | undefined, p: string): string {
 
 const NON_DESCRIPTIVE = new Set(['handle', 'index', 'run', 'execute', 'main', 'post', 'get', 'put', 'delete', 'patch', 'invoke', 'process', 'do', 'call', 'handler', 'exec']);
 
+/** Names generated for inline handlers; they carry no meaning of their own. */
+const SYNTHETIC_HANDLER = /^(route|handler|fn|job)_\d+$/i;
+
 export function isNonDescriptiveName(name: string): boolean {
-  return NON_DESCRIPTIVE.has(name.toLowerCase());
+  return NON_DESCRIPTIVE.has(name.toLowerCase()) || SYNTHETIC_HANDLER.test(name);
 }

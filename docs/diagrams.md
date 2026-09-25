@@ -94,3 +94,26 @@ umlflow generate --type usecase --name admin --include src/admin
 ```
 
 Or write the definition by hand in `config.yaml` and run `umlflow update <name>`.
+
+
+## Component / architecture diagrams (`--type component`)
+
+A structural view of the same System Model the sequence and use case diagrams are built from: components,
+the dependencies between them, external systems and datastores.
+
+```bash
+umlflow generate --type component --name architecture
+umlflow init --types component
+```
+
+Layers are **emergent**. A group is only drawn when the codebase has components of that role, so a CLI tool
+does not get an empty "Interface" band and an event-driven system is not forced into a request/response
+shape. The bands are Interface (controllers), Application (services, handlers), Domain & Data (repositories,
+entities), Integration (gateways) and External systems.
+
+Node shapes encode the kind: `[Component]`, `[(Datastore)]`, `{{External system}}`. Edge style encodes
+evidence — a solid arrow is read from the code, a dotted arrow is inferred.
+
+One edge is drawn per component pair. `injects` and `calls` between the same two components are the same
+architectural relationship observed twice, so the behavioural one wins. Because every view is generated from
+the same model, the architecture and sequence diagrams cannot disagree about whether A calls B.

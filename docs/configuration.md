@@ -17,7 +17,8 @@ analysis:
     - "**/*.d.ts"
   languages: []               # restrict to language ids (typescript, javascript, python, java, go, sql, prisma)
   maxFileSize: 1000000        # bytes
-  maxCallDepth: 6             # default depth when walking flows
+  maxCallDepth: 6
+  respectGitignore: true      # also exclude whatever .gitignore excludes             # default depth when walking flows
 
 output:
   dir: .umlflow/diagrams
@@ -136,3 +137,21 @@ Names are now always clean. The uncertainty is not discarded — it moves to whe
 * the semantic question protocol, which lets you or Claude replace the guess with an answer.
 
 Set `uncertaintyMarkers: true` to restore the old in-name markers.
+
+## `analysis.respectGitignore`
+
+Generated clients, build output and vendored code pollute an architecture model, and the repository already
+declares what those are. With `respectGitignore: true` (the default) UMLFlow reads `.gitignore` and applies
+its patterns as excludes.
+
+An explicit `analysis.include` always wins, so a generated file you *do* want analysed can be added back:
+
+```yaml
+analysis:
+  include: ["src/**", "generated/api-client.ts"]
+  respectGitignore: true
+```
+
+This is a pragmatic subset of the gitignore specification: comments, blank lines, negations (`!`), anchored
+patterns (`/build`), directory patterns (`dist/`, which match at any depth as git does) and plain patterns
+(`*.min.js`). Re-inclusion inside an already-ignored directory is not reproduced.

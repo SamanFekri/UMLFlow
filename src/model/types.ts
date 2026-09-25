@@ -65,6 +65,8 @@ export interface Interaction {
   order: number;
   ref: SourceRef;
   provenance: Provenance;
+  /** The call was awaited / dispatched asynchronously where the language shows it. */
+  async?: boolean;
 }
 
 export type DependencyKind = 'injects' | 'imports' | 'calls' | 'extends' | 'implements' | 'uses';
@@ -133,6 +135,8 @@ export interface FlowStep {
   interactionId: string;
   ref: SourceRef;
   provenance: Provenance;
+  /** The call was awaited / dispatched asynchronously. */
+  async?: boolean;
 }
 
 export interface Flow {
@@ -149,7 +153,7 @@ export interface Flow {
   entities: string[];
 }
 
-export type QuestionKind = 'actor' | 'usecase-name' | 'component-role' | 'flow-name' | 'entity-relation';
+export type QuestionKind = 'actor' | 'usecase-name' | 'component-role' | 'flow-name' | 'entity-relation' | 'entry-point';
 
 /**
  * How much a question matters.

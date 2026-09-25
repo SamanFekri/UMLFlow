@@ -27,6 +27,7 @@ export class SequenceGenerator implements DiagramGenerator {
     let inferredCount = 0;
     let unknownActors = 0;
     const uncertainNames: string[] = [];
+    let asyncCount = 0;
 
     const flows = model.flows.filter((f) => {
       if (scope.entryPoints) return scope.entryPoints.has(f.entryOperation);
@@ -126,7 +127,8 @@ export class SequenceGenerator implements DiagramGenerator {
         modelIds.add(to.id);
         if (step.toOperation) modelIds.add(step.toOperation);
         if (step.provenance.confidence === 'inferred') inferredCount++;
-        body.push({ kind: 'message', from: fromP.id, to: toP.id, label: ov.label(step.interactionId, step.label), confidence: step.provenance.confidence });
+        body.push({ kind: 'message', from: fromP.id, to: toP.id, label: ov.label(step.interactionId, step.label), confidence: step.provenance.confidence, ...(step.async ? { async: true } : {}) });
+        if (step.async) asyncCount++;
         if (step.toOperation) {
           for (const a of accessesFor(step.toOperation, to.id)) {
             body.push({ kind: 'message', from: toP.id, to: dbParticipant(a.entityId).id, label: accessLabel(step.toOperation, a.entityId, a.mode), confidence: a.provenance.confidence });
@@ -157,6 +159,7 @@ export class SequenceGenerator implements DiagramGenerator {
     if (inferredCount > 0) notes.push({ level: 'inferred', text: `${inferredCount} interaction(s) were resolved by naming heuristics rather than typed references (marked "?").` });
     if (flows.length === 0) notes.push({ level: 'info', text: 'No flows matched this scope. Add scope.entryPoints or scope.include, or check `umlflow status`.' });
     for (const u of uncertainNames) notes.push({ level: 'inferred', text: `Uncertain name: ${u}` });
+    if (asyncCount > 0) notes.push({ level: 'info', text: `${asyncCount} interaction(s) are awaited / asynchronous (drawn with an open arrow).` });
     for (const f of flows) {
       const unresolved = f.steps.filter((s) => !s.toOperation && index.components.get(s.toComponent)?.file !== '').length;
       if (unresolved > 0) notes.push({ level: 'info', text: `Flow "${f.name}": ${unresolved} call(s) target components whose operation could not be resolved; their downstream calls are not shown.` });

@@ -69,6 +69,40 @@ export interface UseCaseDiagram extends DiagramBase {
   groups: Record<string, string[]>;
 }
 
+/* --------------------------------------------------------------- component */
+
+export interface ComponentNode {
+  id: string;
+  label: string;
+  /** Architectural role from the System Model. */
+  role: string;
+  /** How it is drawn: a normal component, an external system or a datastore. */
+  kind: 'component' | 'external' | 'datastore' | 'actor';
+  confidence: Confidence;
+}
+
+export interface ComponentEdge {
+  from: string;
+  to: string;
+  /** "calls", "injects", "imports", "reads", "writes", … */
+  kind: string;
+  label?: string;
+  confidence: Confidence;
+}
+
+/**
+ * Architecture / component view: what the parts are and how they depend on one
+ * another. Derived from exactly the same System Model as the sequence and use
+ * case diagrams, so the three can never disagree about a relationship.
+ */
+export interface ComponentDiagram extends DiagramBase {
+  type: 'component';
+  nodes: ComponentNode[];
+  edges: ComponentEdge[];
+  /** Layer name → node ids, rendered as boundaries. */
+  groups: Record<string, string[]>;
+}
+
 /* ---------------------------------------------------------------- sequence */
 
 export interface SequenceParticipant {
@@ -144,7 +178,7 @@ export interface ErDiagram extends DiagramBase {
   relations: ErdRelation[];
 }
 
-export type Diagram = UseCaseDiagram | SequenceDiagram | ErDiagram | (DiagramBase & { type: string; [key: string]: unknown });
+export type Diagram = UseCaseDiagram | SequenceDiagram | ErDiagram | ComponentDiagram | (DiagramBase & { type: string; [key: string]: unknown });
 
 export const UNKNOWN_ACTOR_ID = '__unknown_actor__';
 export const UNKNOWN_ACTOR_LABEL = 'Unknown actor';

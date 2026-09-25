@@ -22,7 +22,7 @@ export function registerSemantic(program: Command): void {
     .command('questions')
     .description('List open semantic questions with compact context (answer them with `semantic answer`)')
     .option('--diagram <name>', 'only questions relevant to one diagram')
-    .option('--kind <kind>', 'filter by kind: actor | usecase-name | component-role | flow-name | entity-relation')
+    .option('--kind <kind>', 'filter by kind: actor | usecase-name | component-role | flow-name | entity-relation | entry-point')
     .option('--all', 'include optional refinements (flow naming, relation confirmation), not just required questions')
     .action(async (opts: { diagram?: string; kind?: string; all?: boolean }, cmd: Command) => {
       const out = makeOut(cmd);
@@ -190,6 +190,12 @@ async function applyAnswer(engine: Umlflow, questions: SemanticQuestion[], id: s
     case 'flow-name':
       ok = await store.set('operations', subject, { flow: value }, source);
       break;
+    case 'entry-point': {
+      // "no" hides the flow everywhere; "yes" records it as an established fact.
+      const negative = /^(no|false|not|ignore)$/i.test(value);
+      ok = await store.set('operations', subject, { ignore: negative }, source);
+      break;
+    }
     case 'entity-relation': {
       // subject is "<from>-><to>"; "none" removes the inferred relationship.
       const [from, to] = subject.split('->');

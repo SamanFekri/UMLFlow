@@ -1,5 +1,6 @@
 import path from 'node:path';
-import type { Annotation, CallSite, CodeFile, CodeImport, CodeSymbol, Field, Param, RouteRegistration } from '../../codemodel/types.js';
+import type { Annotation, CallSite, CodeFile, CodeImport, CodeSymbol, Field, Param, RouteRegistration, MountRegistration } from '../../codemodel/types.js';
+import { matchEntryVerb, REGISTRAR_LIKE, type PatternMatch } from '../entrypatterns.js';
 import { emptyCodeFile } from '../../codemodel/types.js';
 import type { LanguageAdapter, ParseContext } from '../adapter.js';
 import {
@@ -21,8 +22,6 @@ import {
   type Node,
 } from '../treesitter/runtime.js';
 
-const HTTP_METHODS = new Set(['get', 'post', 'put', 'delete', 'patch', 'options', 'head', 'all']);
-const ROUTER_LIKE = /^(app|router|server|api|fastify|express|r|route|routes|http|koa|hono|v\d+)$/;
 const RESOLVE_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts'];
 
 /**
@@ -64,8 +63,14 @@ export class TypeScriptAdapter implements LanguageAdapter {
     try {
       const root = tree.rootNode;
       if (root.hasError) file.status = 'partial';
+      resetRegistrations();
       for (const node of namedChildren(root)) this.visitTopLevel(node, file, ctx, false);
-      file.routes.push(...collectRoutes(root, true));
+      const top = collectRegistrations(root, true, regCtx);
+      file.routes.push(...top.registrations);
+      if (top.mounts.length) file.mounts = [...(file.mounts ?? []), ...top.mounts];
+      file.symbols.push(...top.handlers);
+      // Handlers lifted out of nested function/method bodies during the walk.
+      file.symbols.push(...pendingHandlers.splice(0));
     } finally {
       tree.delete();
     }
@@ -307,9 +312,12 @@ function parseClass(node: Node, exported: boolean, outerDecorators: Annotation[]
       if (member.children.some((c) => c?.type === 'async')) method.flags!.async = true;
       const body = field(member, 'body');
       if (body) {
-        method.calls = collectCalls(body);
+        const reg = collectRegistrations(body, false, regCtx);
+        method.calls = callsOutside(body, reg.handlerRanges);
         method.typeRefs = collectTypeRefs(body);
-        method.routes = collectRoutes(body, false);
+        method.routes = reg.registrations;
+        if (reg.mounts.length) method.mounts = reg.mounts;
+        pendingHandlers.push(...reg.handlers);
       }
       out.push(method);
     }
@@ -372,9 +380,12 @@ function parseFunction(node: Node, exported: boolean): CodeSymbol {
   sym.returnType = simplifyType(field(node, 'return_type')?.text.replace(/^:\s*/, ''));
   const body = field(node, 'body');
   if (body) {
-    sym.calls = collectCalls(body);
+    const reg = collectRegistrations(body, false, regCtx);
+    sym.calls = callsOutside(body, reg.handlerRanges);
     sym.typeRefs = collectTypeRefs(body);
-    sym.routes = collectRoutes(body, false);
+    sym.routes = reg.registrations;
+    if (reg.mounts.length) sym.mounts = reg.mounts;
+    pendingHandlers.push(...reg.handlers);
   }
   if (node.children.some((c) => c?.type === 'async')) sym.flags = { async: true };
   return sym;
@@ -398,9 +409,12 @@ function parseArrowFunction(name: string, decl: Node, fn: Node, exported: boolea
   };
   const body = field(fn, 'body');
   if (body) {
-    sym.calls = collectCalls(body);
+    const reg = collectRegistrations(body, false, regCtx);
+    sym.calls = callsOutside(body, reg.handlerRanges);
     sym.typeRefs = collectTypeRefs(body);
-    sym.routes = collectRoutes(body, false);
+    sym.routes = reg.registrations;
+    if (reg.mounts.length) sym.mounts = reg.mounts;
+    pendingHandlers.push(...reg.handlers);
   }
   return sym;
 }
@@ -458,28 +472,79 @@ function collectTypeRefs(root: Node): string[] {
   return [...refs];
 }
 
-/** Express/Fastify/Koa style routes: app.get('/path', handler). */
-function collectRoutes(root: Node, topLevelOnly: boolean): RouteRegistration[] {
-  const routes: RouteRegistration[] = [];
+/**
+ * Handler registrations of the shape `<receiver>.<verb>(<name>, <handler>)`.
+ *
+ * Covers HTTP routes, event subscriptions, queue consumers, scheduled jobs and
+ * commands through the shared pattern table in `entrypatterns.ts`, so a new
+ * framework is a new verb rather than a new branch here.
+ *
+ * When the handler is written inline (`app.get('/x', async (req, res) => {…})`,
+ * by far the most common style) the arrow body is lifted into its own synthetic
+ * symbol. Without that, the handler's calls are attributed to the enclosing
+ * setup function and no per-route flow can be reconstructed.
+ */
+function collectRegistrations(root: Node, topLevelOnly: boolean, ctx: RegistrationContext): RegistrationResult {
+  const registrations: RouteRegistration[] = [];
+  const mounts: MountRegistration[] = [];
+  const handlers: CodeSymbol[] = [];
+  const handlerRanges: [number, number][] = [];
+
   const consider = (n: Node): void => {
     if (n.type !== 'call_expression') return;
     const fn = field(n, 'function');
     if (!fn || fn.type !== 'member_expression') return;
-    const method = field(fn, 'property')?.text ?? '';
-    if (!HTTP_METHODS.has(method)) return;
-    const obj = field(fn, 'object');
-    const objText = obj?.text ?? '';
-    const args = field(n, 'arguments');
-    const argNodes = args ? namedChildren(args) : [];
+    const verb = field(fn, 'property')?.text ?? '';
+    const mount = matchMount(n, verb);
+    if (mount) {
+      mounts.push(mount);
+      return;
+    }
+    const match = matchEntryVerb(verb);
+    if (!match) return;
+    const objText = field(fn, 'object')?.text ?? '';
+    const argNodes = (() => {
+      const args = field(n, 'arguments');
+      return args ? namedChildren(args) : [];
+    })();
     const first = argNodes[0];
     if (!first || (first.type !== 'string' && first.type !== 'template_string')) return;
-    const p = unquote(first.text);
-    if (!p.startsWith('/') && !ROUTER_LIKE.test(objText)) return;
+    const name = unquote(first.text);
+    if (!name) return;
     const last = argNodes[argNodes.length - 1];
+    if (!last || last === first) return;
+
+    // A bare `x.on('a', fn)` is only accepted when the name looks like a route
+    // or a topic, or the receiver looks like a registrar. This keeps
+    // `stream.on('data', cb)` from being read as an application entry point.
+    const pathLike = name.startsWith('/');
+    const topicLike = /[.:_\-\s*]/.test(name) || match.pattern.kind === 'cli';
+    const registrarLike = REGISTRAR_LIKE.test(objText.split('.').pop() ?? objText);
+    if (!pathLike && !registrarLike && !topicLike) return;
+    if (match.pattern.kind === 'http' && !pathLike && !registrarLike) return;
+
     let handler: string | undefined;
-    if (last && last !== first && (last.type === 'identifier' || last.type === 'member_expression')) handler = last.text;
-    routes.push({ method: method.toUpperCase(), path: p, handler, line: line(n) });
+    if (last.type === 'identifier' || last.type === 'member_expression') {
+      handler = last.text;
+    } else if (last.type === 'arrow_function' || last.type === 'function_expression' || last.type === 'function') {
+      const synthetic = liftInlineHandler(last, name, match, ctx);
+      if (synthetic) {
+        handlers.push(synthetic);
+        handler = synthetic.name;
+        handlerRanges.push([synthetic.line, synthetic.endLine]);
+      }
+    }
+    registrations.push({
+      ...(match.method ? { method: match.method } : {}),
+      path: name,
+      ...(handler ? { handler } : {}),
+      line: line(n),
+      kind: match.pattern.kind,
+      reason: match.pattern.id,
+      confidence: match.pattern.confidence,
+    });
   };
+
   if (topLevelOnly) {
     for (const stmt of namedChildren(root)) {
       if (stmt.type === 'expression_statement') {
@@ -492,5 +557,120 @@ function collectRoutes(root: Node, topLevelOnly: boolean): RouteRegistration[] {
       consider(n);
     });
   }
-  return routes;
+  return { registrations, mounts, handlers, handlerRanges };
+}
+
+/**
+ * Mounting a sub-router under a prefix. Two shapes cover the common cases:
+ *   mount(path, target)                     — `app.use('/api', routes)`
+ *   mount(target, { prefix: path })         — `fastify.register(routes, { prefix: '/api' })`
+ * Recognised by shape, so a framework that mounts the same way works for free.
+ */
+function matchMount(call: Node, verb: string): MountRegistration | null {
+  if (!MOUNT_VERBS.has(verb.toLowerCase())) return null;
+  const args = field(call, 'arguments');
+  const argNodes = args ? namedChildren(args) : [];
+  if (argNodes.length < 2) return null;
+  const [a, b] = argNodes;
+  if (!a || !b) return null;
+  // Shape 1: a path then a router.
+  if ((a.type === 'string' || a.type === 'template_string') && (b.type === 'identifier' || b.type === 'member_expression')) {
+    const prefix = unquote(a.text);
+    if (!prefix.startsWith('/')) return null;
+    return { prefix, target: b.text, line: line(call) };
+  }
+  // Shape 2: a router then an options object carrying the prefix.
+  if (a.type === 'identifier' && b.type === 'object') {
+    const prefix = objectStringProperty(b, 'prefix');
+    if (!prefix) return null;
+    return { prefix, target: a.text, line: line(call) };
+  }
+  return null;
+}
+
+/** Read a string-valued property from an object literal. */
+function objectStringProperty(obj: Node, key: string): string | undefined {
+  for (const prop of namedChildren(obj)) {
+    if (prop.type !== 'pair') continue;
+    const k = field(prop, 'key')?.text.replace(/['"`]/g, '');
+    if (k !== key) continue;
+    const v = field(prop, 'value');
+    if (v && (v.type === 'string' || v.type === 'template_string')) return unquote(v.text);
+  }
+  return undefined;
+}
+
+const MOUNT_VERBS = new Set(['use', 'register', 'mount', 'addroutes']);
+
+interface RegistrationContext {
+  /** Per-file counter so synthetic handler names stay unique. */
+  next: () => number;
+}
+
+/**
+ * Per-file registration state. The tree walk is synchronous, so module scope is
+ * safe here and keeps the signature of every parse helper unchanged.
+ */
+let regCtx: RegistrationContext = newRegistrationContext();
+const pendingHandlers: CodeSymbol[] = [];
+
+function newRegistrationContext(): RegistrationContext {
+  let n = 0;
+  return { next: () => ++n };
+}
+
+function resetRegistrations(): void {
+  regCtx = newRegistrationContext();
+  pendingHandlers.length = 0;
+}
+
+interface RegistrationResult {
+  registrations: RouteRegistration[];
+  mounts: MountRegistration[];
+  handlers: CodeSymbol[];
+  handlerRanges: [number, number][];
+}
+
+/**
+ * Turn an inline handler into a top-level symbol so it owns its own calls.
+ *
+ * HTTP handlers get a deliberately non-descriptive name (`route_3`): the use
+ * case is then named from the route ("Create User") rather than from the
+ * function. Topic-driven handlers are named after the topic instead.
+ */
+function liftInlineHandler(fnNode: Node, name: string, match: PatternMatch, ctx: RegistrationContext): CodeSymbol | null {
+  const body = field(fnNode, 'body');
+  if (!body) return null;
+  const symName = match.pattern.kind === 'http' ? `route_${ctx.next()}` : `${camelFromTopic(name)}_${ctx.next()}`;
+  const sym: CodeSymbol = {
+    id: symName,
+    name: symName,
+    kind: 'function',
+    line: line(fnNode),
+    endLine: endLine(fnNode),
+    exported: false,
+    annotations: [],
+    fields: [],
+    params: parseParams(field(fnNode, 'parameters')),
+    extends: [],
+    implements: [],
+    calls: collectCalls(body),
+    typeRefs: collectTypeRefs(body),
+    flags: { inlineHandler: true },
+  };
+  return sym;
+}
+
+/** "user.created" → "userCreated"; a cron expression carries no name, so → "job". */
+function camelFromTopic(topic: string): string {
+  if (!/[A-Za-z]/.test(topic)) return 'job';
+  const parts = topic.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  if (parts.length === 0) return 'job';
+  const [head, ...rest] = parts;
+  return head!.toLowerCase() + rest.map((r) => r[0]!.toUpperCase() + r.slice(1)).join('');
+}
+
+/** Calls in `body` that do not belong to a lifted inline handler. */
+function callsOutside(body: Node, ranges: [number, number][]): CallSite[] {
+  return collectCalls(body).filter((c) => !ranges.some(([a, b]) => c.line >= a && c.line <= b));
 }

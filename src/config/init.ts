@@ -33,6 +33,8 @@ export function defaultDiagramFor(type: DiagramType): { name: string; descriptio
       return { name: 'main-flows', description: 'Interactions for the main entry points of the system' };
     case 'erd':
       return { name: 'database-erd', description: 'Database entities and their relationships' };
+    case 'component':
+      return { name: 'architecture', description: 'Components, their dependencies, external systems and datastores' };
     default:
       return { name: `${type}-diagram`, description: `${type} diagram` };
   }

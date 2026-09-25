@@ -125,3 +125,43 @@ describe('semantics.yaml header', () => {
     }
   });
 });
+
+describe('.gitignore support', () => {
+  it('translates gitignore lines into repo-relative globs', async () => {
+    const { gitignoreLineToGlob } = await import('../../src/core/gitignore.js');
+    expect(gitignoreLineToGlob('# comment', '')).toBeNull();
+    expect(gitignoreLineToGlob('', '')).toBeNull();
+    // Unanchored patterns match at any depth, as git does.
+    expect(gitignoreLineToGlob('dist/', '')).toBe('**/dist/**');
+    expect(gitignoreLineToGlob('/build', '')).toBe('build');
+    expect(gitignoreLineToGlob('*.min.js', '')).toBe('**/*.min.js');
+    // A pattern containing a slash is anchored to the .gitignore's directory.
+    expect(gitignoreLineToGlob('src/generated/', '')).toBe('src/generated/**');
+    // Nested .gitignore files are relative to their own directory, and an
+    // unanchored pattern still matches at any depth below it.
+    expect(gitignoreLineToGlob('out/', 'packages/api')).toBe('packages/api/**/out/**');
+    expect(gitignoreLineToGlob('/out/', 'packages/api')).toBe('packages/api/out/**');
+  });
+
+  it('excludes ignored files from analysis, and an explicit include wins', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'umlflow-gi-'));
+    try {
+      await fs.writeFile(path.join(dir, '.gitignore'), 'generated/\n');
+      const { loadGitignore } = await import('../../src/core/gitignore.js');
+      const { makeFileFilter } = await import('../../src/change/detector.js');
+      const rules = await loadGitignore(dir);
+      expect(rules.patterns).toContain('**/generated/**');
+
+      const base = { ...DEFAULT_CONFIG.analysis, include: [] as string[] };
+      const filter = makeFileFilter(base, [], rules);
+      expect(filter('src/app.ts')).toBe(true);
+      expect(filter('generated/client.ts')).toBe(false);
+
+      // Deliberately analysing a generated file is still possible.
+      const included = makeFileFilter({ ...base, include: ['generated/**'] }, [], rules);
+      expect(included('generated/client.ts')).toBe(true);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});

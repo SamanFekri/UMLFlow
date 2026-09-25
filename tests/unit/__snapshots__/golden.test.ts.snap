@@ -301,7 +301,7 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
     Note over __unknown_actor__: Flow: Login
     __unknown_actor__->>auth_controller: POST /auth/login
     auth_controller->>auth_service: login
-    auth_service->>user_repository: findByEmail
+    auth_service-)user_repository: findByEmail
     user_repository->>db_user: read User
     auth_service->>session_manager: create
     auth_service-->>auth_controller: result
@@ -312,11 +312,11 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
     __unknown_actor__->>order_controller: POST /orders
     order_controller->>order_service: createOrder
     order_service->>logger: info
-    order_service->>inventory_service: reserve
-    inventory_service->>inventory_repository: decrement
-    order_service->>payment_service: charge
-    payment_service->>payment_gateway: authorize
-    payment_service->>payment_gateway: capture
+    order_service-)inventory_service: reserve
+    inventory_service-)inventory_repository: decrement
+    order_service-)payment_service: charge
+    payment_service-)payment_gateway: authorize
+    payment_service-)payment_gateway: capture
     order_service->>order_repository: save
     order_repository->>db_order: write Order
     order_service-->>order_controller: result
@@ -335,6 +335,7 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
 %% note[inferred]: Uncertain name: Login — named by heuristic from AuthController.login; confirm with \`umlflow semantic questions --kind flow-name\`
 %% note[inferred]: Uncertain name: Create Order — named by heuristic from OrderController.create; confirm with \`umlflow semantic questions --kind flow-name\`
 %% note[inferred]: Uncertain name: Get Order — named by heuristic from OrderController.get; confirm with \`umlflow semantic questions --kind flow-name\`
+%% note[info]: 6 interaction(s) are awaited / asynchronous (drawn with an open arrow).
 "
 `;
 
