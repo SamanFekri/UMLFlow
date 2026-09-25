@@ -32,7 +32,7 @@ describe('incremental pipeline', () => {
     expect(md).toContain('```mermaid');
     expect(md).toContain('sequenceDiagram');
     expect(md).toContain(MD_MANUAL_BEGIN);
-    expect(result.questions).toBe(2);
+    expect(result.questions).toBe(2); // required only; flow-name refinements are optional
     // cache exists, project files exist
     expect(JSON.parse(await read(root, '.umlflow/cache/index.json')).files['src/orders/order.service.ts'].symbols.length).toBeGreaterThan(0);
     // no source text in the cache
@@ -172,10 +172,11 @@ describe('incremental pipeline', () => {
     await engine.semanticsStore.set('components', 'AuthController', { actor: 'Visitor' }, 'semantic-inference');
     engine.invalidateModel();
     const result = await engine.update();
-    expect(result.questions).toBe(0);
+    expect(result.questions).toBe(0); // every required hole is filled
     const uc = await read(root, '.umlflow/diagrams/system-usecases.md');
     expect(uc).toContain('👤 Customer');
-    expect(uc).toContain('👤 Visitor ?');
+    expect(uc).toContain('👤 Visitor');
+    expect(uc).not.toContain('Visitor ?'); // names never carry uncertainty markers
     expect(uc).not.toContain('Unknown actor');
     // user facts are never overwritten by inference
     expect(await engine.semanticsStore.set('components', 'OrderController', { actor: 'Bot' }, 'semantic-inference')).toBe(false);

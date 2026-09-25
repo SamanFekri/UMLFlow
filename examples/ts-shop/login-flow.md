@@ -16,7 +16,7 @@ sequenceDiagram
   participant db_user as 🗄 User
   participant session_manager as SessionManager
   rect rgb(245, 245, 245)
-    Note over actor_visitor: Login ?
+    Note over actor_visitor: Login
     actor_visitor->>auth_controller: POST /auth/login
     auth_controller->>auth_service: login
     auth_service->>user_repository: findByEmail
@@ -28,6 +28,10 @@ sequenceDiagram
   %% UMLFLOW MANUAL BEGIN
   %% UMLFLOW MANUAL END
 ```
+
+**Analysis notes**
+
+- ≈ Uncertain name: Login — named by heuristic from AuthController.login; confirm with `umlflow semantic questions --kind flow-name`
 <!-- UMLFLOW GENERATED END -->
 
 <!-- UMLFLOW MANUAL BEGIN — your notes below are preserved -->

@@ -151,10 +151,21 @@ export interface Flow {
 
 export type QuestionKind = 'actor' | 'usecase-name' | 'component-role' | 'flow-name' | 'entity-relation';
 
+/**
+ * How much a question matters.
+ * - `required`: the model has a hole (unknown actor, non-descriptive name,
+ *   unclassified component). Diagrams are incomplete until it is answered.
+ * - `optional`: a refinement an LLM can improve on (naming a multi-step
+ *   scenario, confirming an inferred relation). Diagrams are already usable.
+ */
+export type QuestionPriority = 'required' | 'optional';
+
 /** Something UMLFlow could not determine deterministically; answered by a person or by Claude. */
 export interface SemanticQuestion {
   id: string;
   kind: QuestionKind;
+  /** Defaults to 'required' when absent. */
+  priority?: QuestionPriority;
   /** The model id the question is about (operation id, component id, …). */
   subject: string;
   question: string;

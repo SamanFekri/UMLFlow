@@ -22,6 +22,11 @@ export interface DiagramBase {
   rawLines: string[];
   /** Renderer-specific style lines supplied by the user. */
   styleLines: string[];
+  /**
+   * Render "?"/"??" uncertainty suffixes on labels. Default false: names stay
+   * clean; uncertainty travels in `notes` and in the validation report.
+   */
+  uncertaintyMarkers?: boolean;
 }
 
 /* ---------------------------------------------------------------- use case */

@@ -2,11 +2,14 @@
 export { Umlflow } from './sync/pipeline.js';
 export type { UpdateResult, CheckResult, DiagramOutcome, IndexRefreshResult, GeneratedDiagram } from './sync/pipeline.js';
 export { diffModels, type ModelDiff } from './sync/diff.js';
+export { requiredQuestions, optionalQuestions } from './sync/pipeline.js';
+export { planScenarios, uncoveredUseCases, scenarioName, SCENARIO_SUFFIX, type ScenarioPlan } from './sync/scenarios.js';
+export { buildCoverage, validateDiagrams, type CoverageReport, type FileCoverage, type ValidationIssue, type ValidationLevel, type DiagramEvidence } from './sync/coverage.js';
 export { initProject } from './config/init.js';
 export { ConfigStore } from './config/store.js';
 export type { UmlflowConfig, DiagramDefinition, DiagramScope, DiagramOverrides, InferredScope, HookMode } from './config/schema.js';
 export { SemanticsStore, type SemanticsData } from './model/semantics.js';
-export type { SystemModel, Component, Operation, Interaction, Entity, EntityRelation, Flow, UseCase, Actor, SemanticQuestion } from './model/types.js';
+export type { SystemModel, Component, Operation, Interaction, Entity, EntityRelation, Flow, UseCase, Actor, SemanticQuestion, QuestionPriority } from './model/types.js';
 export { ModelIndex } from './model/types.js';
 export { buildSystemModel } from './model/build.js';
 export type { Provenance, SourceRef, Confidence, FactSource } from './core/provenance.js';

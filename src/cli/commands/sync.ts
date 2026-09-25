@@ -24,6 +24,7 @@ export function registerSync(program: Command): void {
         out.modelDiff(result.modelDiff);
       }
       if (result.questions > 0) out.line(pc.yellow(`\n${plural(result.questions, 'semantic question')} open: umlflow semantic questions`));
+      if (result.questionsOptional) out.line(pc.dim(`${result.questionsOptional} optional refinement(s) available: umlflow semantic questions --kind flow-name`));
       out.emitJson(result);
       if (result.diagrams.some((d) => d.status === 'error')) process.exitCode = 1;
     });

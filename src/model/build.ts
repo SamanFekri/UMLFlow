@@ -800,6 +800,7 @@ class ModelBuilder {
       this.questions.push({
         id: `actor:${componentId}`,
         kind: 'actor',
+        priority: 'required',
         subject: componentId,
         question: `Which actor initiates the operations of ${comp.name}?`,
         refs: [comp.ref],
@@ -813,18 +814,64 @@ class ModelBuilder {
       this.questions.push({
         id: `usecase-name:${op.id}`,
         kind: 'usecase-name',
+        priority: 'required',
         subject: op.id,
         question: `What business capability does ${op.id} provide? (its name "${op.name}" is not descriptive)`,
         refs: [op.ref],
         context: op.entryPoint?.path ? [`${op.entryPoint.method ?? ''} ${op.entryPoint.path}`.trim()] : undefined,
       });
     }
+    // Flow naming: the call chain is the evidence an LLM needs to name a business
+    // scenario well, so the question carries the chain instead of just the method name.
+    // Only multi-step flows are worth asking about; a one-hop flow is named fine by the route.
+    for (const flow of model.flows) {
+      if (flow.nameProvenance.confidence === 'declared') continue;
+      if (flow.steps.length < 2) continue;
+      const op = this.opById.get(flow.entryOperation);
+      if (!op) continue;
+      const ep = op.entryPoint;
+      const entry = ep?.kind === 'http' ? `${ep.method ?? ''} ${ep.path ?? ''}`.trim() : `${ep?.kind ?? 'call'}: ${op.name}`;
+      const chain = flow.steps
+        .slice(0, 12)
+        .map((s) => `${'  '.repeat(Math.max(0, s.depth - 1))}${s.fromComponent} → ${s.toComponent}.${s.label}`);
+      const touched = flow.entities.length ? [`data: ${flow.entities.join(', ')}`] : [];
+      this.questions.push({
+        id: `flow-name:${flow.entryOperation}`,
+        kind: 'flow-name',
+        priority: 'optional',
+        subject: flow.entryOperation,
+        question: `What business scenario does the flow starting at ${entry} represent? (currently named "${flow.name}", ${flow.nameProvenance.confidence})`,
+        refs: [op.ref],
+        context: [entry, ...chain, ...touched],
+      });
+    }
+
+    // Relationship confirmation: an inferred entity relation is a guess about the
+    // data model, so it is surfaced rather than drawn as if it were read from code.
+    for (const rel of model.relations) {
+      if (rel.provenance.confidence !== 'inferred') continue;
+      const from = model.entities.find((e) => e.id === rel.from);
+      const to = model.entities.find((e) => e.id === rel.to);
+      if (!from || !to) continue;
+      this.questions.push({
+        id: `entity-relation:${rel.from}->${rel.to}`,
+        kind: 'entity-relation',
+        priority: 'optional',
+        subject: rel.from,
+        question: `Is the "${rel.kind}" relationship from ${from.name} to ${to.name} correct? (inferred${rel.fromField ? ` from field "${rel.fromField}"` : ''})`,
+        refs: [from.ref, to.ref],
+        options: ['one-to-one', 'one-to-many', 'many-to-one', 'many-to-many', 'none'],
+        context: [`${from.name}${from.table ? ` (table ${from.table})` : ''} → ${to.name}${to.table ? ` (table ${to.table})` : ''}`, ...(rel.fromField ? [`via field: ${rel.fromField}`] : [])],
+      });
+    }
+
     const interacting = new Set(model.interactions.flatMap((i) => [i.fromComponent, i.toComponent]));
     for (const comp of model.components) {
       if (comp.role !== 'unknown' || !interacting.has(comp.id)) continue;
       this.questions.push({
         id: `component-role:${comp.id}`,
         kind: 'component-role',
+        priority: 'required',
         subject: comp.id,
         question: `What architectural role does ${comp.name} play?`,
         refs: [comp.ref],

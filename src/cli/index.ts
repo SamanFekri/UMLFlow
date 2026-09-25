@@ -9,6 +9,8 @@ import { registerSync } from './commands/sync.js';
 import { registerHooks } from './commands/hooks.js';
 import { registerSemantic } from './commands/semantic.js';
 import { registerSkill } from './commands/skill.js';
+import { registerScenarios } from './commands/scenarios.js';
+import { registerCoverage } from './commands/coverage.js';
 
 const require = createRequire(import.meta.url);
 
@@ -57,6 +59,8 @@ export function buildProgram(): Command {
   registerHooks(program);
   registerSemantic(program);
   registerSkill(program);
+  registerScenarios(program);
+  registerCoverage(program);
   return program;
 }
 

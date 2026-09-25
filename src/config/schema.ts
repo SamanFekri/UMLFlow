@@ -40,6 +40,12 @@ export interface OutputConfig {
    * Derived output for tools that want the bare diagram — set to null to disable.
    */
   mermaidDir: string | null;
+  /**
+   * Append "?" / "??" to inferred / unknown labels inside diagrams.
+   * Off by default: names must stay clean and stable. Uncertainty is reported
+   * in the diagram's analysis notes and by `umlflow validate` instead.
+   */
+  uncertaintyMarkers: boolean;
 }
 
 export interface GitConfig {
@@ -137,6 +143,7 @@ export const DEFAULT_CONFIG: UmlflowConfig = {
     dir: '.umlflow/diagrams',
     format: 'md',
     mermaidDir: 'umlflow',
+    uncertaintyMarkers: false,
   },
   renderer: 'mermaid',
   git: {
@@ -195,6 +202,10 @@ export function normalizeConfig(raw: unknown): UmlflowConfig {
   }
   const mermaidDir = mermaidDirRaw === undefined ? DEFAULT_CONFIG.output.mermaidDir : mermaidDirRaw === '' ? null : mermaidDirRaw;
 
+  const markersRaw = outputRaw.uncertaintyMarkers;
+  if (markersRaw !== undefined && typeof markersRaw !== 'boolean') throw new UmlflowError('Config: output.uncertaintyMarkers must be true or false');
+  const uncertaintyMarkers = markersRaw ?? DEFAULT_CONFIG.output.uncertaintyMarkers;
+
   const diagrams: Record<string, DiagramDefinition> = {};
   for (const [name, defRaw] of Object.entries(diagramsRaw)) {
     if (!/^[a-z0-9][a-z0-9-_]*$/i.test(name)) {
@@ -216,6 +227,7 @@ export function normalizeConfig(raw: unknown): UmlflowConfig {
       dir: typeof outputRaw.dir === 'string' ? outputRaw.dir : DEFAULT_CONFIG.output.dir,
       format,
       mermaidDir,
+      uncertaintyMarkers,
     },
     renderer: typeof raw.renderer === 'string' ? raw.renderer : DEFAULT_CONFIG.renderer,
     git: { hooks },

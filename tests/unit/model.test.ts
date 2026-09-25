@@ -96,8 +96,24 @@ describe('System Model: behavioural facts', () => {
       expect(uc.actorIds).toEqual([]);
       expect(uc.actorProvenance.confidence).toBe('unknown');
     }
-    expect(model.questions.map((q) => q.id)).toEqual(['actor:AuthController', 'actor:OrderController']);
-    expect(model.questions[1]!.context).toEqual(['POST /orders → create', 'GET /orders/:id → get']);
+    const required = model.questions.filter((q) => (q.priority ?? 'required') === 'required');
+    expect(required.map((q) => q.id)).toEqual(['actor:AuthController', 'actor:OrderController']);
+    expect(required[1]!.context).toEqual(['POST /orders → create', 'GET /orders/:id → get']);
+
+    // Every multi-step flow is offered to the LLM for naming, as an optional refinement.
+    const flowQuestions = model.questions.filter((q) => q.kind === 'flow-name');
+    expect(flowQuestions.map((q) => q.id)).toEqual([
+      'flow-name:AuthController.login',
+      'flow-name:OrderController.create',
+      'flow-name:OrderController.get',
+    ]);
+    for (const q of flowQuestions) expect(q.priority).toBe('optional');
+    // The question carries the real call chain, not just the method name, so the
+    // LLM can reason about the scenario without re-reading the repository.
+    const checkout = flowQuestions.find((q) => q.id === 'flow-name:OrderController.create')!;
+    expect(checkout.context!.join('\n')).toContain('OrderController → OrderService.createOrder');
+    expect(checkout.context!.join('\n')).toContain('PaymentService → PaymentGateway.capture');
+    expect(checkout.context!.join('\n')).toContain('data: Order');
   });
 });
 

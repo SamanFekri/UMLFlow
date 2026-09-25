@@ -25,7 +25,7 @@ sequenceDiagram
   participant order_repository as OrderRepository
   participant db_order as 🗄 Order
   rect rgb(245, 245, 245)
-    Note over actor_visitor: Flow: Login ?
+    Note over actor_visitor: Flow: Login
     actor_visitor->>auth_controller: POST /auth/login
     auth_controller->>auth_service: login
     auth_service->>user_repository: findByEmail
@@ -49,7 +49,7 @@ sequenceDiagram
     order_controller-->>actor_customer: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_customer: Flow: Get Order ?
+    Note over actor_customer: Flow: Get Order
     actor_customer->>order_controller: GET /orders/:id
     order_controller->>order_service: findOrder
     order_service->>order_repository: findById
@@ -60,6 +60,11 @@ sequenceDiagram
   %% UMLFLOW MANUAL BEGIN
   %% UMLFLOW MANUAL END
 ```
+
+**Analysis notes**
+
+- ≈ Uncertain name: Login — named by heuristic from AuthController.login; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Order — named by heuristic from OrderController.get; confirm with `umlflow semantic questions --kind flow-name`
 <!-- UMLFLOW GENERATED END -->
 
 <!-- UMLFLOW MANUAL BEGIN — your notes below are preserved -->

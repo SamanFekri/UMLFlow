@@ -29,6 +29,7 @@ export class ErdGenerator implements DiagramGenerator {
       notes,
       rawLines: ov.rawLines,
       styleLines: ov.styleLines,
+      uncertaintyMarkers: ctx.uncertaintyMarkers,
       entities: [],
       relations: [],
     };

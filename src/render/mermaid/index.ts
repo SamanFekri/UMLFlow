@@ -41,14 +41,21 @@ function tail(diagram: Diagram): string[] {
   return lines;
 }
 
-function confidenceMark(confidence: string): string {
+/**
+ * Uncertainty suffix for a label. Empty unless the diagram opted in via
+ * `output.uncertaintyMarkers`: a name like "UserService?" is not a name, and
+ * downstream tools treat it as a different entity. Uncertainty is reported in
+ * the diagram notes and by `umlflow validate` instead.
+ */
+function confidenceMark(confidence: string, enabled: boolean | undefined): string {
+  if (!enabled) return '';
   return confidence === 'inferred' ? ' ?' : confidence === 'unknown' ? ' ??' : '';
 }
 
 function renderUseCase(d: UseCaseDiagram): string {
   const lines: string[] = ['flowchart LR'];
   for (const a of d.actors) {
-    lines.push(`  ${mermaidId('actor_' + a.id)}(["👤 ${esc(a.label)}${confidenceMark(a.confidence)}"])`);
+    lines.push(`  ${mermaidId('actor_' + a.id)}(["👤 ${esc(a.label)}${confidenceMark(a.confidence, d.uncertaintyMarkers)}"])`);
   }
   const grouped = new Set(Object.values(d.groups).flat());
   lines.push(`  subgraph ${mermaidId('system')} ["${esc(d.systemName)}"]`);
@@ -57,13 +64,13 @@ function renderUseCase(d: UseCaseDiagram): string {
     lines.push(`    subgraph ${mermaidId('group_' + group)} ["${esc(group)}"]`);
     for (const id of members) {
       const uc = d.useCases.find((u) => u.id === id);
-      if (uc) lines.push(`      ${mermaidId('uc_' + uc.id)}(["${esc(uc.label)}${confidenceMark(uc.confidence)}"])`);
+      if (uc) lines.push(`      ${mermaidId('uc_' + uc.id)}(["${esc(uc.label)}${confidenceMark(uc.confidence, d.uncertaintyMarkers)}"])`);
     }
     lines.push('    end');
   }
   for (const uc of d.useCases) {
     if (grouped.has(uc.id)) continue;
-    lines.push(`    ${mermaidId('uc_' + uc.id)}(["${esc(uc.label)}${confidenceMark(uc.confidence)}"])`);
+    lines.push(`    ${mermaidId('uc_' + uc.id)}(["${esc(uc.label)}${confidenceMark(uc.confidence, d.uncertaintyMarkers)}"])`);
   }
   lines.push('  end');
   for (const assoc of d.associations) {
@@ -110,26 +117,26 @@ function renderSequence(d: SequenceDiagram): string {
       emitted.add(p.id);
     }
   }
-  renderSequenceElements(d.elements, lines, '  ');
+  renderSequenceElements(d.elements, lines, '  ', d.uncertaintyMarkers);
   lines.push(...tail(d));
   return lines.join('\n') + '\n';
 }
 
-function renderSequenceElements(elements: SequenceElement[], lines: string[], indent: string): void {
+function renderSequenceElements(elements: SequenceElement[], lines: string[], indent: string, markers?: boolean): void {
   for (const el of elements) {
     if (el.kind === 'message') {
       const arrow = el.reply ? '-->>' : el.async ? '-)' : '->>';
-      lines.push(`${indent}${mermaidId(el.from)}${arrow}${mermaidId(el.to)}: ${esc(el.label)}${confidenceMark(el.confidence)}`);
+      lines.push(`${indent}${mermaidId(el.from)}${arrow}${mermaidId(el.to)}: ${esc(el.label)}${confidenceMark(el.confidence, markers)}`);
     } else if (el.kind === 'note') {
       const over = el.over.map(mermaidId).join(',');
       lines.push(`${indent}Note over ${over}: ${esc(el.text)}`);
     } else {
       lines.push(`${indent}${el.op === 'group' ? 'rect rgb(245, 245, 245)' : `${el.op} ${esc(el.label)}`}`);
       if (el.op === 'group') lines.push(`${indent}  Note over ${el.body.length ? firstParticipant(el.body) : ''}: ${esc(el.label)}`);
-      renderSequenceElements(el.body, lines, indent + '  ');
+      renderSequenceElements(el.body, lines, indent + '  ', markers);
       for (const branch of el.branches ?? []) {
         lines.push(`${indent}else ${esc(branch.label)}`);
-        renderSequenceElements(branch.body, lines, indent + '  ');
+        renderSequenceElements(branch.body, lines, indent + '  ', markers);
       }
       lines.push(`${indent}end`);
     }
@@ -158,7 +165,8 @@ function renderErd(d: ErDiagram): string {
   const lines: string[] = ['erDiagram'];
   for (const e of d.entities) {
     const id = mermaidId(e.id);
-    const alias = e.label !== e.id ? `["${esc(e.label)}${confidenceMark(e.confidence)}"]` : e.confidence === 'unknown' ? `["${esc(e.label)} ??"]` : '';
+    const mark = confidenceMark(e.confidence, d.uncertaintyMarkers);
+    const alias = e.label !== e.id ? `["${esc(e.label)}${mark}"]` : mark ? `["${esc(e.label)}${mark}"]` : '';
     if (e.attributes.length === 0) {
       lines.push(`  ${id}${alias} {`);
       lines.push('  }');
@@ -175,7 +183,7 @@ function renderErd(d: ErDiagram): string {
   }
   for (const r of d.relations) {
     const conn = CARDINALITY[r.cardinality] ?? CARDINALITY.unknown;
-    lines.push(`  ${mermaidId(r.from)} ${conn} ${mermaidId(r.to)} : "${esc(r.label)}${confidenceMark(r.confidence)}"`);
+    lines.push(`  ${mermaidId(r.from)} ${conn} ${mermaidId(r.to)} : "${esc(r.label)}${confidenceMark(r.confidence, d.uncertaintyMarkers)}"`);
   }
   lines.push(...tail(d));
   return lines.join('\n') + '\n';

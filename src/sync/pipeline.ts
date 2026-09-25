@@ -7,7 +7,7 @@ import { createDefaultRegistry, type ParserRegistry } from '../parsers/registry.
 import { detectChanges, changedPaths, diffHashSnapshots, isEmptyChangeSet, type ChangeSet } from '../change/detector.js';
 import { buildSystemModel } from '../model/build.js';
 import { SemanticsStore } from '../model/semantics.js';
-import { ModelIndex, type SystemModel } from '../model/types.js';
+import { ModelIndex, type SystemModel, type UseCase } from '../model/types.js';
 import type { CodeFile } from '../codemodel/types.js';
 import { createDefaultGenerators, createDefaultRenderers } from '../diagrams/index.js';
 import { inferScope, resolveScope, type ScopeInferenceResult } from '../diagrams/scope.js';
@@ -19,6 +19,7 @@ import { UmlflowError } from '../core/errors.js';
 import { UNKNOWN_ACTOR_ID } from '../diagrams/ir.js';
 import { composeGeneratedBlock, composeMermaidMirror, extractGeneratedBlock, extractManualDiagramLines, generatedFingerprint, mergeOutput, mermaidMirrorFileName, outputFileName } from './output.js';
 import { diffModels, type ModelDiff } from './diff.js';
+import { planScenarios, uncoveredUseCases, type ScenarioPlan } from './scenarios.js';
 
 export interface IndexRefreshResult {
   /** Changes relative to the parse cache (what had to be re-parsed). */
@@ -50,7 +51,10 @@ export interface DiagramOutcome {
 export interface UpdateResult {
   index: IndexRefreshResult;
   diagrams: DiagramOutcome[];
+  /** Open questions that leave a hole in the model (priority "required"). */
   questions: number;
+  /** Refinements an LLM could improve on (priority "optional"). */
+  questionsOptional?: number;
   modelDiff: ModelDiff | null;
 }
 
@@ -58,7 +62,10 @@ export interface CheckResult {
   index: IndexRefreshResult;
   diagrams: DiagramOutcome[];
   stale: boolean;
+  /** Open questions that leave a hole in the model (priority "required"). */
   questions: number;
+  /** Refinements an LLM could improve on (priority "optional"). */
+  questionsOptional?: number;
 }
 
 export interface GeneratedDiagram {
@@ -234,7 +241,7 @@ export class Umlflow {
     if (!renderer.supports(definition.type)) throw new UmlflowError(`Renderer "${renderer.id}" cannot render "${definition.type}" diagrams`);
     const semantics = this.semanticsStore.get();
     const scope = resolveScope(definition, m, semantics, this.config.analysis.maxCallDepth);
-    const result = generator.generate({ name, definition, model: m, index: new ModelIndex(m), scope, semantics });
+    const result = generator.generate({ name, definition, model: m, index: new ModelIndex(m), scope, semantics, uncertaintyMarkers: this.config.output.uncertaintyMarkers });
     const file = this.diagramFile(name, definition);
     const existing = await readTextOrNull(file);
     const existingBlock = existing ? extractGeneratedBlock(existing, this.config.output.format, renderer) : null;
@@ -375,7 +382,7 @@ export class Umlflow {
     }
     const modelDiff = previousModel ? diffModels(previousModel, model) : null;
     await this.markSynced();
-    return { index, diagrams: outcomes, questions: model.questions.length, modelDiff };
+    return { index, diagrams: outcomes, questions: requiredQuestions(model), questionsOptional: optionalQuestions(model), modelDiff };
   }
 
   /** Report stale diagrams without modifying project files. Suitable for CI. */
@@ -394,7 +401,7 @@ export class Umlflow {
         outcomes.push({ name, type: def.type, file, status: 'error', reason: (err as Error).message });
       }
     }
-    return { index, diagrams: outcomes, stale: outcomes.some((o) => o.status === 'stale' || o.status === 'missing'), questions: model.questions.length };
+    return { index, diagrams: outcomes, stale: outcomes.some((o) => o.status === 'stale' || o.status === 'missing'), questions: requiredQuestions(model), questionsOptional: optionalQuestions(model) };
   }
 
   /** Semantic diff between the last synchronised model and the current code. */
@@ -423,6 +430,30 @@ export class Umlflow {
     await this.configStore.setDiagram(name, def);
     this.config = this.configStore.get();
     return { definition: this.config.diagrams[name]!, inference };
+  }
+
+  /**
+   * Define one sequence diagram per use case (a "scenario"), each pinned to a
+   * single entry point. Existing scenarios are recognised by the entry point
+   * they are scoped to, so this is idempotent and safe to re-run after new
+   * endpoints appear.
+   */
+  async defineScenarios(options: { only?: Set<string>; depth?: number; dryRun?: boolean } = {}): Promise<ScenarioPlan[]> {
+    const model = await this.getModel();
+    const plans = planScenarios(model, { existing: this.config.diagrams, ...(options.only ? { only: options.only } : {}), ...(options.depth ? { depth: options.depth } : {}) });
+    if (options.dryRun) return plans;
+    for (const plan of plans) {
+      if (plan.exists) continue;
+      await this.configStore.setDiagram(plan.name, plan.definition);
+    }
+    this.config = this.configStore.get();
+    return plans;
+  }
+
+  /** Use cases with no sequence diagram pinned to their entry point. */
+  async uncoveredScenarios(): Promise<UseCase[]> {
+    const model = await this.getModel();
+    return uncoveredUseCases(model, this.config.diagrams);
   }
 
   async removeDiagram(name: string): Promise<boolean> {
@@ -460,3 +491,13 @@ function couldResolveTo(source: string, importer: string, files: string[]): bool
 }
 
 export { isEmptyChangeSet };
+
+/** Questions whose absence leaves a hole in the model (unknown actor, role, or name). */
+export function requiredQuestions(model: SystemModel): number {
+  return model.questions.filter((q) => (q.priority ?? 'required') === 'required').length;
+}
+
+/** Questions that only refine an already-usable model (flow naming, relation confirmation). */
+export function optionalQuestions(model: SystemModel): number {
+  return model.questions.filter((q) => q.priority === 'optional').length;
+}

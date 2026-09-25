@@ -16,25 +16,26 @@ exports[`golden diagrams > go-shop sequence 1`] = `
   participant client as Client
   participant order_repository as OrderRepository
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Create Order ?
+    Note over __unknown_actor__: Create Order
     __unknown_actor__->>order_handler: ANY /orders
     order_handler->>order_service: Create
-    order_service->>client: Charge ?
+    order_service->>client: Charge
     order_service->>order_repository: Save
     order_service-->>order_handler: result
     order_handler-->>__unknown_actor__: response
   end
 %% note[unknown]: 1 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
 %% note[inferred]: 1 interaction(s) were resolved by naming heuristics rather than typed references (marked "?").
+%% note[inferred]: Uncertain name: Create Order — named by heuristic from OrderHandler.Create; confirm with \`umlflow semantic questions --kind flow-name\`
 "
 `;
 
 exports[`golden diagrams > go-shop usecase 1`] = `
 "flowchart LR
-  actor___unknown_actor__(["👤 Unknown actor ??"])
+  actor___unknown_actor__(["👤 Unknown actor"])
   subgraph system ["System"]
     direction TB
-    uc_order_handler_create(["Create Order ?"])
+    uc_order_handler_create(["Create Order"])
   end
   actor___unknown_actor__ -.-> uc_order_handler_create
 %% note[unknown]: 1 use case(s) have no known actor. Declare one with \`umlflow declare actor <Name> --for <Component>\` or answer \`umlflow semantic questions\`.
@@ -73,7 +74,7 @@ exports[`golden diagrams > java-shop sequence 1`] = `
   participant payment_gateway as PaymentGateway
   participant order_repository as OrderRepository
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Create Order ?
+    Note over __unknown_actor__: Flow: Create Order
     __unknown_actor__->>order_controller: POST /orders
     order_controller->>order_service: create
     order_service->>payment_gateway: charge
@@ -82,7 +83,7 @@ exports[`golden diagrams > java-shop sequence 1`] = `
     order_controller-->>__unknown_actor__: response
   end
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Get Order ?
+    Note over __unknown_actor__: Flow: Get Order
     __unknown_actor__->>order_controller: GET /orders/{id}
     order_controller->>order_service: find
     order_service->>order_repository: findById
@@ -90,6 +91,8 @@ exports[`golden diagrams > java-shop sequence 1`] = `
     order_controller-->>__unknown_actor__: response
   end
 %% note[unknown]: 2 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+%% note[inferred]: Uncertain name: Create Order — named by heuristic from OrderController.create; confirm with \`umlflow semantic questions --kind flow-name\`
+%% note[inferred]: Uncertain name: Get Order — named by heuristic from OrderController.get; confirm with \`umlflow semantic questions --kind flow-name\`
 %% note[info]: Flow "Create Order": 1 call(s) target components whose operation could not be resolved; their downstream calls are not shown.
 %% note[info]: Flow "Get Order": 1 call(s) target components whose operation could not be resolved; their downstream calls are not shown.
 "
@@ -97,11 +100,11 @@ exports[`golden diagrams > java-shop sequence 1`] = `
 
 exports[`golden diagrams > java-shop usecase 1`] = `
 "flowchart LR
-  actor___unknown_actor__(["👤 Unknown actor ??"])
+  actor___unknown_actor__(["👤 Unknown actor"])
   subgraph system ["System"]
     direction TB
-    uc_order_controller_create(["Create Order ?"])
-    uc_order_controller_get(["Get Order ?"])
+    uc_order_controller_create(["Create Order"])
+    uc_order_controller_get(["Get Order"])
   end
   actor___unknown_actor__ -.-> uc_order_controller_create
   actor___unknown_actor__ -.-> uc_order_controller_get
@@ -163,7 +166,7 @@ exports[`golden diagrams > py-shop sequence 1`] = `
   participant ext_requests as ☁ requests
   participant order_repository as OrderRepository
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Create Order ?
+    Note over __unknown_actor__: Flow: Create Order
     __unknown_actor__->>api: POST /orders
     api->>order_service: create_order
     order_service->>payment_client: charge
@@ -173,21 +176,23 @@ exports[`golden diagrams > py-shop sequence 1`] = `
     api-->>__unknown_actor__: response
   end
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Get Order ?
+    Note over __unknown_actor__: Flow: Get Order
     __unknown_actor__->>api: GET /orders/{order_id}
     api-->>__unknown_actor__: response
   end
 %% note[unknown]: 2 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+%% note[inferred]: Uncertain name: Create Order — named by heuristic from api.create_order; confirm with \`umlflow semantic questions --kind flow-name\`
+%% note[inferred]: Uncertain name: Get Order — named by heuristic from api.get_order; confirm with \`umlflow semantic questions --kind flow-name\`
 "
 `;
 
 exports[`golden diagrams > py-shop usecase 1`] = `
 "flowchart LR
-  actor___unknown_actor__(["👤 Unknown actor ??"])
+  actor___unknown_actor__(["👤 Unknown actor"])
   subgraph system ["System"]
     direction TB
-    uc_api_create_order(["Create Order ?"])
-    uc_api_get_order(["Get Order ?"])
+    uc_api_create_order(["Create Order"])
+    uc_api_get_order(["Get Order"])
   end
   actor___unknown_actor__ -.-> uc_api_create_order
   actor___unknown_actor__ -.-> uc_api_get_order
@@ -261,7 +266,7 @@ exports[`golden diagrams > ts-shop inferred login sequence with declared actor a
   end
   participant session_manager as Sessions
   rect rgb(245, 245, 245)
-    Note over actor_visitor: Login ?
+    Note over actor_visitor: Login
     actor_visitor->>auth_controller: POST /auth/login
     auth_controller->>auth_service: login
     auth_service->>session_manager: create
@@ -269,6 +274,7 @@ exports[`golden diagrams > ts-shop inferred login sequence with declared actor a
     auth_controller-->>actor_visitor: response
   end
   %% custom line
+%% note[inferred]: Uncertain name: Login — named by heuristic from AuthController.login; confirm with \`umlflow semantic questions --kind flow-name\`
 "
 `;
 
@@ -292,7 +298,7 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
   participant order_repository as OrderRepository
   participant db_order as 🗄 Order
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Login ?
+    Note over __unknown_actor__: Flow: Login
     __unknown_actor__->>auth_controller: POST /auth/login
     auth_controller->>auth_service: login
     auth_service->>user_repository: findByEmail
@@ -302,7 +308,7 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
     auth_controller-->>__unknown_actor__: response
   end
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Create Order ?
+    Note over __unknown_actor__: Flow: Create Order
     __unknown_actor__->>order_controller: POST /orders
     order_controller->>order_service: createOrder
     order_service->>logger: info
@@ -317,7 +323,7 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
     order_controller-->>__unknown_actor__: response
   end
   rect rgb(245, 245, 245)
-    Note over __unknown_actor__: Flow: Get Order ?
+    Note over __unknown_actor__: Flow: Get Order
     __unknown_actor__->>order_controller: GET /orders/:id
     order_controller->>order_service: findOrder
     order_service->>order_repository: findById
@@ -326,20 +332,23 @@ exports[`golden diagrams > ts-shop sequence 1`] = `
     order_controller-->>__unknown_actor__: response
   end
 %% note[unknown]: 3 flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.
+%% note[inferred]: Uncertain name: Login — named by heuristic from AuthController.login; confirm with \`umlflow semantic questions --kind flow-name\`
+%% note[inferred]: Uncertain name: Create Order — named by heuristic from OrderController.create; confirm with \`umlflow semantic questions --kind flow-name\`
+%% note[inferred]: Uncertain name: Get Order — named by heuristic from OrderController.get; confirm with \`umlflow semantic questions --kind flow-name\`
 "
 `;
 
 exports[`golden diagrams > ts-shop use cases with declared actors and groups 1`] = `
 "flowchart LR
   actor_customer(["👤 Customer"])
-  actor_visitor(["👤 Visitor ?"])
+  actor_visitor(["👤 Visitor"])
   subgraph system ["System"]
     direction TB
     subgraph group_Orders ["Orders"]
-      uc_order_controller_create(["Create Order ?"])
+      uc_order_controller_create(["Create Order"])
     end
-    uc_auth_controller_login(["Sign in ?"])
-    uc_order_controller_get(["Get Order ?"])
+    uc_auth_controller_login(["Sign in"])
+    uc_order_controller_get(["Get Order"])
   end
   actor_visitor -.-> uc_auth_controller_login
   actor_customer --> uc_order_controller_create
@@ -351,12 +360,12 @@ exports[`golden diagrams > ts-shop use cases with declared actors and groups 1`]
 
 exports[`golden diagrams > ts-shop usecase 1`] = `
 "flowchart LR
-  actor___unknown_actor__(["👤 Unknown actor ??"])
+  actor___unknown_actor__(["👤 Unknown actor"])
   subgraph system ["System"]
     direction TB
-    uc_auth_controller_login(["Login ?"])
-    uc_order_controller_create(["Create Order ?"])
-    uc_order_controller_get(["Get Order ?"])
+    uc_auth_controller_login(["Login"])
+    uc_order_controller_create(["Create Order"])
+    uc_order_controller_get(["Get Order"])
   end
   actor___unknown_actor__ -.-> uc_auth_controller_login
   actor___unknown_actor__ -.-> uc_order_controller_create

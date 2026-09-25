@@ -13,6 +13,8 @@ export interface GenerateContext {
   index: ModelIndex;
   scope: ResolvedScope;
   semantics: SemanticsData;
+  /** From output.uncertaintyMarkers; generators pass it through to the IR. */
+  uncertaintyMarkers?: boolean;
 }
 
 export interface GenerateResult {

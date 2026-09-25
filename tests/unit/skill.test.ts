@@ -118,7 +118,7 @@ describe('Claude Code skill', () => {
     expect(text.length).toBeLessThan(3000);
     expect(text).toContain('Diagrams:');
     expect(text).toContain('up to date');
-    expect(text).toContain('Open semantic questions (2)');
+    expect(text).toContain('Open semantic questions (5, 2 required)');
     expect(text).toContain('actor:OrderController');
     expect(text).toContain('refs: src/orders/order.controller.ts:6');
     expect(text).not.toContain('import ');

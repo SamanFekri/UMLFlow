@@ -26,6 +26,7 @@ export class SequenceGenerator implements DiagramGenerator {
     const elements: SequenceElement[] = [];
     let inferredCount = 0;
     let unknownActors = 0;
+    const uncertainNames: string[] = [];
 
     const flows = model.flows.filter((f) => {
       if (scope.entryPoints) return scope.entryPoints.has(f.entryOperation);
@@ -137,8 +138,13 @@ export class SequenceGenerator implements DiagramGenerator {
       }
       emitReturnsDownTo(1);
       body.push({ kind: 'message', from: entryParticipant.id, to: actorParticipant.id, label: 'response', reply: true, confidence: 'deterministic' });
-      const label = flow.nameProvenance.confidence === 'declared' ? flow.name : `${flow.name}${flow.nameProvenance.confidence === 'inferred' ? ' ?' : flow.nameProvenance.confidence === 'unknown' ? ' ??' : ''}`;
-      elements.push({ kind: 'fragment', op: 'group', label: flows.length > 1 ? `Flow: ${label}` : label, body });
+      // Names are always clean: uncertainty is reported in notes, never welded onto the name.
+      // A name that came back through the question protocol (semantics.yaml) was
+      // answered, not guessed, so it is not reported as uncertain.
+      const answered = flow.nameProvenance.reason?.startsWith('semantics.yaml') ?? false;
+      if (!answered && flow.nameProvenance.confidence === 'inferred') uncertainNames.push(`${flow.name} — named by heuristic from ${flow.entryOperation}; confirm with \`umlflow semantic questions --kind flow-name\``);
+      else if (!answered && flow.nameProvenance.confidence === 'unknown') uncertainNames.push(`${flow.name} — name unknown; declare it with \`umlflow declare flow\``);
+      elements.push({ kind: 'fragment', op: 'group', label: flows.length > 1 ? `Flow: ${flow.name}` : flow.name, body });
     }
 
     for (const rel of ov.relationships) {
@@ -150,6 +156,7 @@ export class SequenceGenerator implements DiagramGenerator {
     if (unknownActors > 0) notes.push({ level: 'unknown', text: `${unknownActors} flow(s) start from an unknown actor. Declare one with \`umlflow declare actor <Name> --for <Component>\`.` });
     if (inferredCount > 0) notes.push({ level: 'inferred', text: `${inferredCount} interaction(s) were resolved by naming heuristics rather than typed references (marked "?").` });
     if (flows.length === 0) notes.push({ level: 'info', text: 'No flows matched this scope. Add scope.entryPoints or scope.include, or check `umlflow status`.' });
+    for (const u of uncertainNames) notes.push({ level: 'inferred', text: `Uncertain name: ${u}` });
     for (const f of flows) {
       const unresolved = f.steps.filter((s) => !s.toOperation && index.components.get(s.toComponent)?.file !== '').length;
       if (unresolved > 0) notes.push({ level: 'info', text: `Flow "${f.name}": ${unresolved} call(s) target components whose operation could not be resolved; their downstream calls are not shown.` });
@@ -163,6 +170,7 @@ export class SequenceGenerator implements DiagramGenerator {
       notes,
       rawLines: ov.rawLines,
       styleLines: ov.styleLines,
+      uncertaintyMarkers: ctx.uncertaintyMarkers,
       participants: [...participants.values()],
       elements,
     };

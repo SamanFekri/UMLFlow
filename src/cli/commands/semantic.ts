@@ -22,12 +22,17 @@ export function registerSemantic(program: Command): void {
     .command('questions')
     .description('List open semantic questions with compact context (answer them with `semantic answer`)')
     .option('--diagram <name>', 'only questions relevant to one diagram')
-    .option('--kind <kind>', 'filter by kind: actor | usecase-name | component-role | flow-name')
-    .action(async (opts: { diagram?: string; kind?: string }, cmd: Command) => {
+    .option('--kind <kind>', 'filter by kind: actor | usecase-name | component-role | flow-name | entity-relation')
+    .option('--all', 'include optional refinements (flow naming, relation confirmation), not just required questions')
+    .action(async (opts: { diagram?: string; kind?: string; all?: boolean }, cmd: Command) => {
       const out = makeOut(cmd);
       const engine = await Umlflow.open(globalOptions(cmd).cwd);
       const model = await engine.getModel();
       let questions = model.questions;
+      // Required questions are holes in the model; optional ones only refine it.
+      // Default to required so "no open questions" stays a meaningful all-clear.
+      const optionalCount = questions.filter((q) => q.priority === 'optional').length;
+      if (!opts.all && !opts.kind) questions = questions.filter((q) => (q.priority ?? 'required') === 'required');
       if (opts.kind) questions = questions.filter((q) => q.kind === opts.kind);
       if (opts.diagram) {
         const states = await engine.indexStore.loadDiagramState();
@@ -35,6 +40,7 @@ export function registerSemantic(program: Command): void {
         questions = questions.filter((q) => ids.has(q.subject) || [...ids].some((id) => id.startsWith(q.subject + '.')));
       }
       if (!questions.length) out.line(pc.green('No open semantic questions.'));
+      if (!opts.all && !opts.kind && optionalCount) out.line(pc.dim(`${optionalCount} optional refinement(s) available: umlflow semantic questions --all`));
       for (const q of questions) printQuestion(out, q);
       if (questions.length) out.line(pc.dim('\nAnswer with: umlflow semantic answer --set <id>=<value> [--set ...]   (or --file answers.json)'));
       out.emitJson(questions);
@@ -184,6 +190,13 @@ async function applyAnswer(engine: Umlflow, questions: SemanticQuestion[], id: s
     case 'flow-name':
       ok = await store.set('operations', subject, { flow: value }, source);
       break;
+    case 'entity-relation': {
+      // subject is "<from>-><to>"; "none" removes the inferred relationship.
+      const [from, to] = subject.split('->');
+      if (!from || !to) return 'invalid id';
+      ok = await store.set('entities', from, { relations: { [to]: value } }, source);
+      break;
+    }
     case 'component-role':
       if (!ROLES.includes(value as ComponentRole)) return `invalid role "${value}"`;
       ok = await store.set('components', subject, { role: value }, source);

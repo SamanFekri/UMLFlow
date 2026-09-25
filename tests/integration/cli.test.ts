@@ -71,8 +71,8 @@ describe('CLI', () => {
   it('semantic questions/answers and declarations round-trip through the CLI', async () => {
     run(root, 'init', '-y');
     const q = run(root, 'semantic', 'questions', '--json');
-    const questions = q.json() as { id: string; options: string[] }[];
-    expect(questions.map((x) => x.id)).toEqual(['actor:AuthController', 'actor:OrderController']);
+    const questions = q.json() as { id: string; options: string[]; priority?: string }[];
+    expect(questions.filter((x) => (x.priority ?? 'required') === 'required').map((x) => x.id)).toEqual(['actor:AuthController', 'actor:OrderController']);
     const a = run(root, 'semantic', 'answer', '--set', 'actor:AuthController=Visitor', '--set', 'usecase-name:OrderController.get=Look up an order');
     expect(a.code).toBe(0);
     expect(a.stdout).toContain('recorded');

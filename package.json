@@ -1,6 +1,6 @@
 {
   "name": "umlflow",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Language-agnostic code understanding and incremental UML (Mermaid) synchronization for Claude Code and the CLI",
   "keywords": [
     "uml",
@@ -41,6 +41,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "CHANGELOG.md",
     "bin/",
     "dist/",
     "!dist/**/*.map",

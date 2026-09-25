@@ -23,7 +23,7 @@ export interface ContextSummary {
     unknownFacts: number;
   };
   semantics: { userFacts: number; inferredFacts: number };
-  questions: { id: string; kind: string; subject: string; question: string; options?: string[]; context?: string[]; refs: string[] }[];
+  questions: { id: string; kind: string; priority: string; subject: string; question: string; options?: string[]; context?: string[]; refs: string[] }[];
   entryPoints: string[];
   nextSteps: string[];
 }
@@ -46,7 +46,10 @@ export async function buildContext(engine: Umlflow): Promise<ContextSummary> {
   const nextSteps: string[] = [];
   const pending = index.sinceSync.added.length + index.sinceSync.modified.length + index.sinceSync.deleted.length + index.sinceSync.renamed.length;
   if (diagrams.some((d) => d.status !== 'up to date')) nextSteps.push('Run `umlflow update` to bring affected diagrams up to date.');
-  if (model.questions.length) nextSteps.push(`Answer ${model.questions.length} semantic question(s): \`umlflow semantic questions\` then \`umlflow semantic answer --set <id>=<value>\`.`);
+  const required = model.questions.filter((q) => (q.priority ?? 'required') === 'required').length;
+  const optional = model.questions.length - required;
+  if (required) nextSteps.push(`Answer ${required} required semantic question(s): \`umlflow semantic questions\` then \`umlflow semantic answer --set <id>=<value>\`.`);
+  if (optional) nextSteps.push(`${optional} optional refinement(s) (flow names, relations) can improve diagram quality: \`umlflow semantic questions --kind flow-name\`.`);
   if (diagrams.length === 0) nextSteps.push('No diagrams defined: `umlflow generate --type <usecase|sequence|erd> --name <name> [--about "<topic>"]`.');
   return {
     root: engine.root,
@@ -55,7 +58,7 @@ export async function buildContext(engine: Umlflow): Promise<ContextSummary> {
     index: { files: index.total, unparsed: model.unparsed.length, languages, pendingChanges: pending, rebuilt: index.rebuilt },
     model: summarizeModel(model),
     semantics: { userFacts: semEntries.filter((e) => e.source === 'user').length, inferredFacts: semEntries.filter((e) => e.source === 'semantic-inference').length },
-    questions: model.questions.map((q) => ({ id: q.id, kind: q.kind, subject: q.subject, question: q.question, options: q.options, context: q.context, refs: q.refs.map((r) => `${r.file}${r.line ? ':' + r.line : ''}`) })),
+    questions: model.questions.map((q) => ({ id: q.id, kind: q.kind, priority: q.priority ?? 'required', subject: q.subject, question: q.question, options: q.options, context: q.context, refs: q.refs.map((r) => `${r.file}${r.line ? ':' + r.line : ''}`) })),
     entryPoints: model.operations.filter((o) => o.entryPoint).map((o) => `${o.id} [${o.entryPoint!.kind}${o.entryPoint!.path ? ' ' + (o.entryPoint!.method ?? '') + ' ' + o.entryPoint!.path : ''}]`),
     nextSteps,
   };
@@ -98,7 +101,8 @@ export function formatContext(ctx: ContextSummary): string {
     if (ctx.entryPoints.length > 40) lines.push(`  … ${ctx.entryPoints.length - 40} more (see \`umlflow status --json\`)`);
   }
   if (ctx.questions.length) {
-    lines.push(`Open semantic questions (${ctx.questions.length}):`);
+    const req = ctx.questions.filter((q) => q.priority === 'required').length;
+    lines.push(`Open semantic questions (${ctx.questions.length}${req !== ctx.questions.length ? `, ${req} required` : ''}):`);
     for (const q of ctx.questions.slice(0, 20)) {
       lines.push(`  - ${q.id}: ${q.question}`);
       if (q.context?.length) lines.push(`      context: ${q.context.join('; ')}`);

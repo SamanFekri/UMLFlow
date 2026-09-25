@@ -23,6 +23,7 @@ output:
   dir: .umlflow/diagrams
   format: md                  # md = Markdown with a ```mermaid block; mmd = bare Mermaid file
   mermaidDir: umlflow         # extra plain-Mermaid mirror, grouped by type; null disables it
+  uncertaintyMarkers: false   # never append "?"/"??" to names (see below)
 
 renderer: mermaid
 
@@ -119,3 +120,19 @@ delete it, and removed when you run `umlflow remove <name>`. Edit the file under
 
 Set `mermaidDir: null` to turn the mirror off. The path must be relative and inside the repository; a diagram
 whose `type` changes leaves its old mirror behind, so delete that file yourself after a type change.
+
+## `output.uncertaintyMarkers` — why names are clean
+
+UMLFlow used to append `?` to an inferred label and `??` to an unknown one, producing names like
+`UserService?` and `Create Order ?`. A name with a marker is not a name: it breaks Mermaid `classDef`
+selectors, makes diffs noisy when confidence flips, and every downstream tool treats `UserService?` and
+`UserService` as two different things.
+
+Names are now always clean. The uncertainty is not discarded — it moves to where it can be read and acted on:
+
+* the diagram's **analysis notes** (`Uncertain name: Login — named by heuristic from AuthController.login;
+  confirm with 'umlflow semantic questions --kind flow-name'`),
+* `umlflow validate`, which fails on a marked name,
+* the semantic question protocol, which lets you or Claude replace the guess with an answer.
+
+Set `uncertaintyMarkers: true` to restore the old in-name markers.

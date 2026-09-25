@@ -57,3 +57,55 @@ Re-running `generate` with an existing `--name` updates that definition (new fla
 
 * Names ending in ` ?` are inferred; ` ??` are unknown. Solid arrows are deterministic, dotted are inferred.
 * `--json` on every command returns the full structured result (outcomes, change sets, diff, questions).
+
+
+## `umlflow scenarios`
+
+One sequence diagram per use case. Each scenario is **pinned to a single entry point**
+(`scope.entryPoints: [<operation>]`), so unrelated use cases can never be merged into one diagram and a
+scenario cannot drift as the code grows.
+
+```bash
+umlflow scenarios              # define one diagram per use case, then build them
+umlflow scenarios --dry-run    # show what would be created
+umlflow scenarios --no-build   # define only; generate later with `umlflow update`
+umlflow scenarios --depth 8    # deeper call chains for the generated scenarios
+```
+
+Idempotent: an existing scenario is recognised by the entry point it is scoped to, not by its name, so you
+can rename a diagram and re-run this safely. New endpoints get a new scenario; nothing is duplicated.
+
+For `ts-shop` this produces `login-sequence`, `create-order-sequence` and `get-order-sequence` — the login
+diagram contains no payment components, and the get-order diagram contains four participants rather than
+the whole system.
+
+## `umlflow coverage`
+
+What UMLFlow analysed, and what it could not.
+
+```bash
+umlflow coverage
+umlflow coverage --json
+```
+
+Reports indexed files split into analysed / no-structure / unparsed, entry points by kind, use cases with
+and without their own sequence diagram, components with an unknown role or in no diagram, and calls whose
+target operation could not be resolved (their downstream path is invisible, so it is stated rather than
+silently dropped).
+
+## `umlflow validate`
+
+Checks generated diagrams against the System Model.
+
+```bash
+umlflow validate            # exit 1 on errors
+umlflow validate --strict   # exit 1 on warnings too
+```
+
+| Check | Level |
+|---|---|
+| `name-uncertainty-marker` — a name ends in `?`/`??` | error |
+| `unbacked-id` — a drawn id is not in the model | warning |
+| `usecase-without-scenario` — a use case has no sequence diagram | warning |
+| `duplicate-entity` — two entities share a name | warning |
+| `unresolved-calls` — calls whose target could not be resolved | warning |

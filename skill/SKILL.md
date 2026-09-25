@@ -17,6 +17,9 @@ the diagrams a change affects. **The source code is the source of truth**; diagr
 /umlflow sequence "<topic>"                # sequence diagram scoped to a topic, e.g. "checkout", "login"
 /umlflow usecase ["<topic>"]               # use case diagram (whole system, or scoped)
 /umlflow erd ["<topic>"]                   # entity-relationship diagram from SQL/Prisma/ORM models
+/umlflow scenarios                         # one sequence diagram per use case (each pinned to a single entry point)
+/umlflow coverage                          # what was analysed and what could not be understood
+/umlflow validate                          # check diagrams against the model (clean names, evidence-backed participants)
 /umlflow update [name]                     # bring affected diagrams up to date (only changed files are re-parsed)
 /umlflow check                             # are diagrams stale? (no writes; same check CI uses)
 /umlflow diff                              # architecture changes since last sync + affected diagrams
@@ -68,8 +71,12 @@ Only open a file when a question's `refs` point at it and its `context` lines ar
 |---|---|
 | `/umlflow` (initialized) | `umlflow update` then `umlflow context`; report diagrams + questions |
 | `/umlflow sequence "<topic>"` | `umlflow generate --type sequence --name <slug>-flow --about "<topic>"` |
+| "a diagram per use case / per scenario / for each flow" | `umlflow scenarios` — never hand-build these |
 | `/umlflow usecase ["<topic>"]` | `umlflow generate --type usecase --name <slug>-usecases [--about "<topic>"]` |
 | `/umlflow erd ["<topic>"]` | `umlflow generate --type erd --name <slug>-erd [--about "<topic>"]` |
+| `/umlflow scenarios` | `umlflow scenarios` — defines and builds one diagram per use case |
+| `/umlflow coverage` | `umlflow coverage` |
+| `/umlflow validate` | `umlflow validate` (exit 1 = a name or participant is wrong) |
 | `/umlflow update [name]` | `umlflow update [name]` |
 | `/umlflow check` | `umlflow check` (exit 1 = stale) |
 | `/umlflow diff` | `umlflow diff` |
@@ -89,8 +96,14 @@ Structure is extracted deterministically. What code cannot say — which actor t
 business name for `handle()`, the role of an unannotated class — UMLFlow lists as questions:
 
 ```bash
-umlflow semantic questions --json
+umlflow semantic questions --json          # required: holes in the model (unknown actor, role, name)
+umlflow semantic questions --all --json    # + optional refinements you are uniquely good at
 ```
+
+Required questions block a complete diagram. **Optional** ones are where your judgement adds the most:
+`flow-name` carries the whole call chain (`OrderController → OrderService.createOrder → PaymentService.charge …`)
+so you can name the *business scenario* — "Checkout and payment capture", not "Create Order". `entity-relation`
+asks you to confirm an inferred foreign key. Answer them from the `context` alone; that is why it is there.
 
 For each: use its `context` lines and `options`; open only the listed `refs` if needed; then
 
@@ -117,6 +130,13 @@ Architecture changes: + AuthService now depends on OAuthClient …
 
 ## Rules
 
+- **One scenario per use case.** Never merge unrelated use cases into one sequence diagram, and never
+  hand-write a diagram: run `umlflow scenarios`, which pins each diagram to a single entry point.
+- **Names are never marked.** A name must never end in `?` or `??` — `UserService?` is not a name.
+  Uncertainty belongs in the analysis notes, which UMLFlow writes for you. Run `umlflow validate` after
+  generating; it exits 1 if a name or participant is wrong.
+- **Report coverage honestly.** `umlflow coverage` lists files that produced no structure and use cases
+  with no diagram. Say what was not understood instead of describing architecture you have not seen.
 - Never edit the generated block of a diagram file. Customise via `diagrams.<name>.overrides` in
   `.umlflow/config.yaml` (labels, aliases, exclude, actors, groups, relationships, raw, style) or the
   `UMLFLOW MANUAL` sections, which survive updates.

@@ -33,7 +33,7 @@ sequenceDiagram
     order_controller-->>actor_customer: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_customer: Flow: Get Order ?
+    Note over actor_customer: Flow: Get Order
     actor_customer->>order_controller: GET /orders/:id
     order_controller->>order_service: findOrder
     order_service->>order_repository: findById
@@ -44,6 +44,10 @@ sequenceDiagram
   %% UMLFLOW MANUAL BEGIN
   %% UMLFLOW MANUAL END
 ```
+
+**Analysis notes**
+
+- ≈ Uncertain name: Get Order — named by heuristic from OrderController.get; confirm with `umlflow semantic questions --kind flow-name`
 <!-- UMLFLOW GENERATED END -->
 
 <!-- UMLFLOW MANUAL BEGIN — your notes below are preserved -->

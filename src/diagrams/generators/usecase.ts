@@ -33,6 +33,7 @@ export class UseCaseGenerator implements DiagramGenerator {
       notes,
       rawLines: ov.rawLines,
       styleLines: ov.styleLines,
+      uncertaintyMarkers: ctx.uncertaintyMarkers,
       systemName: definition.overrides?.labels?.__system__ ?? 'System',
       actors: [],
       useCases: [],

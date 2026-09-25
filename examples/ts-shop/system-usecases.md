@@ -11,9 +11,9 @@ flowchart LR
   actor_visitor(["👤 Visitor"])
   subgraph system ["System"]
     direction TB
-    uc_auth_controller_login(["Login ?"])
+    uc_auth_controller_login(["Login"])
     uc_order_controller_create(["Place order"])
-    uc_order_controller_get(["Get Order ?"])
+    uc_order_controller_get(["Get Order"])
   end
   actor_visitor --> uc_auth_controller_login
   actor_customer --> uc_order_controller_create

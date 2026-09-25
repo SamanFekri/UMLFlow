@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'node:path';
+import os from 'node:os';
 import { promises as fs } from 'node:fs';
 import { cleanup, read, tempRepo } from '../helpers.js';
 import { IndexStore } from '../../src/index/store.js';
@@ -98,5 +99,29 @@ describe('config', () => {
   it('fingerprints are order-independent', () => {
     expect(stableStringify({ b: 1, a: [{ d: 1, c: 2 }] })).toBe('{"a":[{"c":2,"d":1}],"b":1}');
     expect(fingerprint({ b: 1, a: 2 })).toBe(fingerprint({ a: 2, b: 1 }));
+  });
+});
+
+describe('semantics.yaml header', () => {
+  it('is written once and never stacked on repeated saves', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'umlflow-sem-'));
+    try {
+      const file = path.join(dir, 'semantics.yaml');
+      const store = new SemanticsStore(file);
+      await store.load();
+      for (let i = 0; i < 5; i++) await store.set('actors', `Actor${i}`, {}, 'user');
+      const once = (await fs.readFile(file, 'utf8')).split('# UMLFlow semantic facts').length - 1;
+      expect(once).toBe(1);
+
+      // A store re-opened on the existing file must not add a second copy: the
+      // YAML parser hangs the leading comment on the first key, not on the document.
+      const reopened = new SemanticsStore(file);
+      await reopened.load();
+      await reopened.set('actors', 'Later', {}, 'user');
+      const after = (await fs.readFile(file, 'utf8')).split('# UMLFlow semantic facts').length - 1;
+      expect(after).toBe(1);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });

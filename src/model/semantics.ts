@@ -101,6 +101,31 @@ export function provenanceFor(source: SemanticSource, reason?: string): Provenan
     : { source: 'semantic-inference', confidence: 'inferred', refs: [], reason };
 }
 
+/** Header written above a new semantics.yaml. Written once; never stacked. */
+export const SEMANTICS_HEADER =
+  ' UMLFlow semantic facts.\n Entries with source "user" are declared by people and never overwritten.\n Entries with source "semantic-inference" were established once and are reused.';
+
+/** True when a YAML comment already carries the UMLFlow semantics header, in any of its wordings. */
+function isSemanticsHeader(comment: unknown): boolean {
+  return typeof comment === 'string' && comment.includes('UMLFlow semantic facts');
+}
+
+/**
+ * Does this document already start with the UMLFlow header?
+ *
+ * `parseDocument` does not attach a leading comment to the document: it hangs it
+ * on the first map item's key (or, in other shapes, on the contents node). Testing
+ * only `doc.commentBefore` therefore always read "no header" and re-added one on
+ * every save, so semantics.yaml grew by a copy per write.
+ */
+function hasSemanticsHeader(doc: Document): boolean {
+  if (isSemanticsHeader(doc.commentBefore)) return true;
+  const contents = doc.contents as { commentBefore?: unknown; items?: { key?: { commentBefore?: unknown } }[] } | null;
+  if (isSemanticsHeader(contents?.commentBefore)) return true;
+  const firstKey = contents?.items?.[0]?.key;
+  return isSemanticsHeader(firstKey?.commentBefore);
+}
+
 export class SemanticsStore {
   private doc: Document | null = null;
   private data: SemanticsData = emptySemantics();
@@ -177,10 +202,10 @@ export class SemanticsStore {
       doc.set(section, doc.createNode(this.data[section]));
     }
     if (!doc.has('version')) doc.set('version', 1);
-    if (!doc.commentBefore) {
-      doc.commentBefore =
-        ' UMLFlow semantic facts.\n Entries with source "user" are declared by people and never overwritten.\n Entries with source "semantic-inference" were established once and are reused.';
-    }
+    // `parseDocument` attaches a leading comment to the contents node, not to the
+    // document, so testing `doc.commentBefore` alone re-added the header on every
+    // save and the file grew by one copy per write. Check both, and never stack.
+    if (!hasSemanticsHeader(doc)) doc.commentBefore = SEMANTICS_HEADER;
     this.doc = doc;
     await writeText(this.file, doc.toString());
   }
